@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Update="clientsettings.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <EmbeddedResource Include="Examples/equipment-diagnosis.flow.json"/>
+    <EmbeddedResource Include="Examples/connected-branch.flow.json" LogicalName="WpfArgumentMap.ConnectedBranchExample.json" />
+    <EmbeddedResource Include="Examples/flow-diagram-task-template.txt" LogicalName="WpfArgumentMap.FlowDiagramTaskTemplate.txt" />
+    <EmbeddedResource Include="../FlowDiagramLanguage.md" LogicalName="WpfArgumentMap.FlowDiagramLanguage.md" />
+    <ProjectReference Include="../ArgumentMap.Client/ArgumentMap.Client.csproj"/>
+    <ProjectReference Include="../ArgumentMap.Rules/ArgumentMap.Rules.csproj"/>
+  </ItemGroup>
+
+  <!-- Upgrade an existing developer output without shipping the former embedded host or secrets.
+       Custom/shared test outputs are deliberately excluded. Fresh publish directories are checked by Publish-Lan.ps1. -->
+  <Target Name="RemoveLegacyEmbeddedServer" BeforeTargets="PrepareForBuild"
+          Condition="$([System.String]::Copy('$(OutputPath)').StartsWith('bin\')) Or $([System.String]::Copy('$(OutputPath)').StartsWith('bin/'))">
+    <ItemGroup>
+      <_LegacyServerFiles Include="$(OutputPath)ArgumentMap.Server.*;$(OutputPath)ArgumentMap.Storage.*;$(OutputPath)ArgumentMap.Business.*;$(OutputPath)MySqlConnector.*;$(OutputPath)appsettings*.json" />
+    </ItemGroup>
+    <Delete Files="@(_LegacyServerFiles)" TreatErrorsAsWarnings="true" />
+  </Target>
+
+</Project>

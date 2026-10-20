@@ -1,0 +1,73 @@
+CREATE TABLE IF NOT EXISTS DictLogin (
+    UserName VARCHAR(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL PRIMARY KEY,
+    Md5Password VARCHAR(32) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+    LoginCode VARCHAR(32) CHARACTER SET ascii COLLATE ascii_bin NULL,
+    EditAllRoad BOOLEAN NOT NULL DEFAULT FALSE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='独立登录账号，沿用旧项目账号及登录码格式';
+
+CREATE TABLE IF NOT EXISTS MapMetadata (
+    Id INT NOT NULL PRIMARY KEY,
+    SchemaVersion INT NOT NULL,
+    NextLineId INT NOT NULL,
+    NextCrossId BIGINT NOT NULL,
+    CONSTRAINT CK_Metadata CHECK (Id = 1 AND NextLineId > 0 AND NextCrossId > 0)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='地图架构版本及编号序列';
+
+CREATE TABLE IF NOT EXISTS `Lines` (
+    Id INT NOT NULL PRIMARY KEY,
+    Owner VARCHAR(255) NOT NULL,
+    IsLocked BOOLEAN NOT NULL DEFAULT FALSE,
+    IsChanged INT NOT NULL DEFAULT 0,
+    Version BIGINT NOT NULL DEFAULT 0,
+    RoadName VARCHAR(32) NOT NULL DEFAULT '',
+    RoadDetail VARCHAR(255) NOT NULL DEFAULT '',
+    Speed INT NOT NULL DEFAULT 5,
+    PassInDirection SMALLINT NOT NULL DEFAULT 1,
+    PassInOpposeDirection SMALLINT NOT NULL DEFAULT 0,
+    UpdatedAt DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    CONSTRAINT CK_Lines CHECK (Id > 0 AND CHAR_LENGTH(TRIM(Owner)) > 0 AND IsLocked IN (0, 1) AND Version >= 0),
+    CONSTRAINT CK_Lines_Speed CHECK (Speed BETWEEN 5 AND 500),
+    CONSTRAINT CK_Lines_PassDirection CHECK (PassInDirection=1 AND PassInOpposeDirection IN (0,1))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='逻辑线路';
+
+CREATE TABLE IF NOT EXISTS LineNodes (
+    LineId INT NOT NULL,
+    NodeOrder INT NOT NULL,
+    X INT NOT NULL,
+    Y INT NOT NULL,
+    IsChanged INT NOT NULL DEFAULT 0,
+    PRIMARY KEY (LineId, NodeOrder),
+    UNIQUE KEY UQ_NodeCoordinate (X, Y),
+    CONSTRAINT FK_Node_Line FOREIGN KEY (LineId) REFERENCES `Lines`(Id) ON DELETE CASCADE,
+    CONSTRAINT CK_Nodes CHECK (NodeOrder >= 0 AND X BETWEEN 0 AND 500000 AND Y BETWEEN 0 AND 500000)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='整数节点及线路内顺序';
+
+CREATE TABLE IF NOT EXISTS Crosses (
+    Id BIGINT NOT NULL PRIMARY KEY,
+    Line1Id INT NOT NULL,
+    Line2Id INT NOT NULL,
+    X DECIMAL(7,1) NOT NULL,
+    Y DECIMAL(7,1) NOT NULL,
+    Segment1 INT NOT NULL,
+    Segment2 INT NOT NULL,
+    Percent1 DOUBLE NOT NULL DEFAULT 0,
+    Percent2 DOUBLE NOT NULL DEFAULT 0,
+    Line1Version BIGINT NOT NULL,
+    Line2Version BIGINT NOT NULL,
+    CrossState INT NOT NULL DEFAULT 0,
+    Version BIGINT NOT NULL DEFAULT 0,
+    IsChanged INT NOT NULL DEFAULT 0,
+    UpdatedAt DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    UNIQUE KEY UQ_CrossRelation (Line1Id, Line2Id, X, Y),
+    KEY IX_Cross_Line1Segment (Line1Id, Segment1),
+    KEY IX_Cross_Line2Segment (Line2Id, Segment2),
+    KEY IX_Cross_Line2 (Line2Id),
+    CONSTRAINT FK_Cross_Line1 FOREIGN KEY (Line1Id) REFERENCES `Lines`(Id) ON DELETE CASCADE,
+    CONSTRAINT FK_Cross_Line2 FOREIGN KEY (Line2Id) REFERENCES `Lines`(Id) ON DELETE CASCADE,
+    CONSTRAINT CK_Cross_Position CHECK (Percent1 BETWEEN 0 AND 1 AND Percent2 BETWEEN 0 AND 1),
+    CONSTRAINT CK_Cross CHECK (Id > 0 AND Line1Id < Line2Id AND X BETWEEN 0 AND 500000 AND Y BETWEEN 0 AND 500000
+        AND X * 2 = FLOOR(X * 2) AND Y * 2 = FLOOR(Y * 2)
+        AND Segment1 >= 0 AND Segment2 >= 0 AND Line1Version >= 0 AND Line2Version >= 0 AND CrossState IN (-1, 0, 1) AND Version >= 0)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='交点及通行关系，坐标保留一位小数，支持半整数';
+
+INSERT IGNORE INTO MapMetadata (Id, SchemaVersion, NextLineId, NextCrossId) VALUES (1, 8, 1, 1);

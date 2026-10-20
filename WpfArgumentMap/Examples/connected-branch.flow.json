@@ -1,0 +1,19 @@
+{
+  "format": "argumentmap.flow/1",
+  "origin": "S",
+  "ln": [
+    {"id":"S", "at":[0.5,0.5], "size":12, "value":"设备停止运行", "logic":"S", "info":"示范布局，实际事实应以用户资料为准"},
+    {"id":"P", "at":[0.5,-39.5], "size":6, "value":"供电是否正常？", "logic":"P"},
+    {"id":"Yes", "at":[0.5,-79.5], "size":4, "value":"True", "logic":"P"},
+    {"id":"No", "at":[-29.5,-59.5], "size":4, "value":"False", "logic":"¬P"},
+    {"id":"A", "at":[0.5,-119.5], "size":12, "value":"继续检查停机原因", "logic":"(S ∧ P) → A"},
+    {"id":"B", "at":[-79.5,-59.5], "size":12, "value":"检查电源与线路", "logic":"(S ∧ ¬P) → B"}
+  ],
+  "roads": [
+    {"id":"main", "points":[[0,12],[0,-132]], "direction":"forward", "speed":100, "name":"判断与是分支"},
+    {"id":"negative", "points":[[12,-60],[-92,-60]], "direction":"forward", "speed":100, "name":"否分支"}
+  ],
+  "crosses": [
+    {"road1":"main", "road2":"negative", "at":[0,-60], "state":"connected"}
+  ]
+}

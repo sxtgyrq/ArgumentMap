@@ -1,0 +1,88 @@
+CREATE TABLE IF NOT EXISTS DictLogin (
+    UserName VARCHAR(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL PRIMARY KEY,
+    Md5Password VARCHAR(32) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+    LoginCode VARCHAR(32) CHARACTER SET ascii COLLATE ascii_bin NULL,
+    EditAllRoad BOOLEAN NOT NULL DEFAULT FALSE,
+    EditAllLogicalNodes BOOLEAN NOT NULL DEFAULT FALSE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='独立登录账号，沿用旧项目账号及登录码格式';
+
+CREATE TABLE IF NOT EXISTS MapMetadata (
+    Id INT NOT NULL PRIMARY KEY,
+    SchemaVersion INT NOT NULL,
+    CONSTRAINT AM9_CK_Metadata CHECK (Id = 1)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='地图架构版本及事务锁';
+
+CREATE TABLE IF NOT EXISTS `Lines` (
+    LineCode VARCHAR(10) CHARACTER SET ascii COLLATE ascii_bin NOT NULL PRIMARY KEY,
+    Owner VARCHAR(255) NOT NULL,
+    IsLocked BOOLEAN NOT NULL DEFAULT FALSE,
+    IsChanged INT NOT NULL DEFAULT 0,
+    Version BIGINT NOT NULL DEFAULT 0,
+    RoadName VARCHAR(32) NOT NULL DEFAULT '',
+    RoadDetail VARCHAR(255) NOT NULL DEFAULT '',
+    Speed INT NOT NULL DEFAULT 5,
+    PassInDirection SMALLINT NOT NULL DEFAULT 1,
+    PassInOpposeDirection SMALLINT NOT NULL DEFAULT 0,
+    UpdatedAt DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    CONSTRAINT AM9_CK_Lines CHECK (REGEXP_LIKE(LineCode, '^[A-Z]{10}$', 'c') AND CHAR_LENGTH(TRIM(Owner)) > 0 AND IsLocked IN (0, 1) AND Version >= 0),
+    CONSTRAINT AM9_CK_Lines_Speed CHECK (Speed BETWEEN 5 AND 500),
+    CONSTRAINT AM9_CK_Lines_PassDirection CHECK (PassInDirection=1 AND PassInOpposeDirection IN (0,1))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='逻辑线路';
+
+CREATE TABLE IF NOT EXISTS LineNodes (
+    LineCode VARCHAR(10) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+    NodeOrder INT NOT NULL,
+    X INT NOT NULL,
+    Y INT NOT NULL,
+    IsChanged INT NOT NULL DEFAULT 0,
+    PRIMARY KEY (LineCode, NodeOrder),
+    UNIQUE KEY UQ_NodeCoordinate (X, Y),
+    CONSTRAINT AM9_FK_Node_Line FOREIGN KEY (LineCode) REFERENCES `Lines`(LineCode) ON DELETE CASCADE,
+    CONSTRAINT AM9_CK_Nodes CHECK (NodeOrder >= 0 AND X BETWEEN 0 AND 500000 AND Y BETWEEN 0 AND 500000)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='整数节点及线路内顺序';
+
+CREATE TABLE IF NOT EXISTS Crosses (
+    Line1Code VARCHAR(10) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+    Line2Code VARCHAR(10) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+    X DECIMAL(7,1) NOT NULL,
+    Y DECIMAL(7,1) NOT NULL,
+    Segment1 INT NOT NULL,
+    Segment2 INT NOT NULL,
+    Percent1 DOUBLE NOT NULL DEFAULT 0,
+    Percent2 DOUBLE NOT NULL DEFAULT 0,
+    Line1Version BIGINT NOT NULL,
+    Line2Version BIGINT NOT NULL,
+    CrossState INT NOT NULL DEFAULT 0,
+    Version BIGINT NOT NULL DEFAULT 0,
+    IsChanged INT NOT NULL DEFAULT 0,
+    UpdatedAt DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    PRIMARY KEY (Line1Code, Line2Code, X, Y),
+    KEY IX_Cross_Line1Segment (Line1Code, Segment1),
+    KEY IX_Cross_Line2Segment (Line2Code, Segment2),
+    KEY IX_Cross_Line2 (Line2Code),
+    CONSTRAINT AM9_FK_Cross_Line1 FOREIGN KEY (Line1Code) REFERENCES `Lines`(LineCode) ON DELETE CASCADE,
+    CONSTRAINT AM9_FK_Cross_Line2 FOREIGN KEY (Line2Code) REFERENCES `Lines`(LineCode) ON DELETE CASCADE,
+    CONSTRAINT AM9_CK_Cross_Position CHECK (Percent1 BETWEEN 0 AND 1 AND Percent2 BETWEEN 0 AND 1),
+    CONSTRAINT AM9_CK_Cross CHECK (REGEXP_LIKE(Line1Code, '^[A-Z]{10}$', 'c') AND REGEXP_LIKE(Line2Code, '^[A-Z]{10}$', 'c') AND Line1Code > Line2Code AND X BETWEEN 0 AND 500000 AND Y BETWEEN 0 AND 500000
+        AND X * 2 = FLOOR(X * 2) AND Y * 2 = FLOOR(Y * 2)
+        AND Segment1 >= 0 AND Segment2 >= 0 AND Line1Version >= 0 AND Line2Version >= 0 AND CrossState IN (-1, 0, 1, 2, 3) AND Version >= 0)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='交点及通行关系，坐标保留一位小数，支持半整数';
+
+CREATE TABLE IF NOT EXISTS LogicalNodes (
+    Code VARCHAR(10) CHARACTER SET ascii COLLATE ascii_bin NOT NULL PRIMARY KEY,
+    Owner VARCHAR(255) NOT NULL,
+    Version BIGINT NOT NULL DEFAULT 0,
+    X DECIMAL(7,1) NOT NULL,
+    Y DECIMAL(7,1) NOT NULL,
+    SideLength INT NOT NULL,
+    StartSlot TINYINT GENERATED ALWAYS AS (CASE WHEN SideLength=18 THEN 1 ELSE NULL END) STORED,
+    UNIQUE KEY UQ_LN_Start (StartSlot),
+    `Value` VARCHAR(32) NOT NULL DEFAULT '',
+    Info VARCHAR(255) NOT NULL DEFAULT '',
+    UpdatedAt DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    CONSTRAINT CK_LN_V14 CHECK (REGEXP_LIKE(Code, '^[A-Z]{10}$', 'c') AND CHAR_LENGTH(TRIM(Owner))>0 AND Version>=0
+        AND MOD(X,1)=0.5 AND MOD(Y,1)=0.5 AND SideLength IN (6,12,18)
+        AND X-SideLength/2>=0 AND Y-SideLength/2>=0 AND X+SideLength/2<=500000 AND Y+SideLength/2<=500000)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='LN 节点主表，位置独立保存为一对多';
+
+INSERT IGNORE INTO MapMetadata (Id, SchemaVersion) VALUES (1, 14);

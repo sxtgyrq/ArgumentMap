@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="MySqlConnector" Version="2.6.2"/>
+    <EmbeddedResource Include="Schema.sql"/>
+    <EmbeddedResource Include="Schema.Undo.sql"/>
+    <EmbeddedResource Include="Schema.Legacy.sql"/>
+    <EmbeddedResource Include="Schema.CodeV14.sql"/>
+    <EmbeddedResource Include="Schema.CodeV15.sql"/>
+    <EmbeddedResource Include="Schema.LogicalNodePositions.sql"/>
+    <ProjectReference Include="../ArgumentMap.Contracts/ArgumentMap.Contracts.csproj"/>
+  </ItemGroup>
+</Project>

@@ -1,0 +1,98 @@
+<Window x:Class="WpfArgumentMap.LogicalNodeWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="LN · 逻辑节点" Width="600" Height="790" MinWidth="480" MinHeight="460" Background="#F3F6FB" WindowStartupLocation="CenterOwner" Closing="Window_Closing">
+ <Window.Resources>
+  <Style TargetType="TextBlock"><Setter Property="Foreground" Value="#344054"/></Style>
+  <Style TargetType="TextBox"><Setter Property="Padding" Value="10,7"/><Setter Property="BorderBrush" Value="#CED8E7"/><Setter Property="Margin" Value="0,5,0,12"/></Style>
+  <Style TargetType="ComboBox"><Setter Property="Padding" Value="8,6"/><Setter Property="Margin" Value="0,5,0,12"/></Style>
+  <Style TargetType="Button"><Setter Property="Padding" Value="12,8"/><Setter Property="Margin" Value="6,0,0,0"/></Style>
+ </Window.Resources>
+ <Grid Margin="24">
+  <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+  <StackPanel Margin="0,0,0,18"><TextBlock x:Name="Heading" Text="新建逻辑节点" FontSize="26" FontWeight="SemiBold" TextWrapping="Wrap"/><TextBlock x:Name="Identity" Foreground="#667085" Margin="0,6,0,0" TextWrapping="Wrap"/></StackPanel>
+  <ScrollViewer x:Name="EditorScroll" Grid.Row="1" VerticalScrollBarVisibility="Auto">
+   <StackPanel x:Name="EditablePanel">
+    <Border Background="White" CornerRadius="12" Padding="20" Margin="0,0,0,14">
+     <StackPanel x:Name="GeometryPanel">
+      <TextBlock Text="正方形范围" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,12"/>
+      <Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="14"/><ColumnDefinition/></Grid.ColumnDefinitions>
+       <StackPanel><TextBlock Text="中心 X"/><TextBox x:Name="XInput"/></StackPanel><StackPanel Grid.Column="2"><TextBlock Text="中心 Y"/><TextBox x:Name="YInput"/></StackPanel>
+      </Grid>
+      <TextBlock Text="边长"/><ComboBox x:Name="SizeInput" SelectedValuePath="Tag"><ComboBoxItem Content="4 · 是／否分支" Tag="4"/><ComboBoxItem Content="6" Tag="6"/><ComboBoxItem Content="8 · 等同／蕴含／等价／集合关系" Tag="8"/><ComboBoxItem Content="10 · 实例" Tag="10"/><ComboBoxItem Content="12" Tag="12"/><ComboBoxItem Content="18 · 开始（全图唯一）" Tag="18"/></ComboBox>
+      <TextBlock Text="中心为整数＋0.5；边和顶点全部在 0–500000 内。LN 之间不能重叠，边和顶点也不能接触。仅横线、竖线可穿过；45° 斜线只能擦过顶点。范围内禁止线路节点，Cross 必须是不连通。" Foreground="#667085" TextWrapping="Wrap"/>
+     </StackPanel>
+    </Border>
+    <Border Background="White" CornerRadius="12" Padding="20" Margin="0,0,0,14">
+     <StackPanel>
+      <DockPanel Margin="0,0,0,12">
+       <Button x:Name="LocateInstanceParentButton" DockPanel.Dock="Right" Content="定位所属 LN12" Visibility="Collapsed" Padding="2" BorderThickness="0" Background="Transparent" Foreground="RoyalBlue" Cursor="Hand" Click="LocateInstanceParent_Click"/>
+       <Button x:Name="LocateBranchSourceButton" DockPanel.Dock="Right" Content="定位关联 LN6" Visibility="Collapsed" Padding="2" BorderThickness="0" Background="Transparent" Foreground="RoyalBlue" Cursor="Hand" Click="LocateBranchSource_Click"/>
+       <Button x:Name="ShowReferencingBranchesButton" DockPanel.Dock="Right" Content="查看引用它的 LN4" Visibility="Collapsed" Padding="2" BorderThickness="0" Background="Transparent" Foreground="RoyalBlue" Cursor="Hand" Click="ShowReferencingBranches_Click"/>
+       <TextBlock Text="基本信息" FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center"/>
+      </DockPanel>
+     <StackPanel x:Name="MetadataPanel">
+      <TextBlock Text="值"/><TextBox x:Name="ValueInput" MaxLength="32" AcceptsReturn="False" TextWrapping="NoWrap" VerticalScrollBarVisibility="Disabled" HorizontalScrollBarVisibility="Auto" ToolTip="单行输入，不允许换行，最多 32 个字符。"/>
+      <ComboBox x:Name="BranchValueInput" Visibility="Collapsed" SelectedValuePath="Tag" ToolTip="LN4 的值只能为 True 或 False；逻辑语言可留空，True 对应 P，False 对应 ¬P">
+       <ComboBoxItem Content="True" Tag="True"/><ComboBoxItem Content="False" Tag="False"/>
+      </ComboBox>
+      <ComboBox x:Name="RelationValueInput" Visibility="Collapsed" SelectedValuePath="Tag" ToolTip="LN8：= 表示两个 LN12 所指同一；→ 表示前提 LN6 蕴含结论 LN6；↔ 表示两个 LN6 命题逻辑等价（互相蕴含）。集合关系用于 LN12：⊇ 包含、⊆ 包含于（允许相等）；⊋ 真包含、⊊ 真包含于（不相等）。按左右顺序读取，自由放置，不自动检查端点、推断或改变 Cross 通行。">
+       <ComboBoxItem Content="= · 等同" Tag="="/><ComboBoxItem Content="→ · 蕴含" Tag="→"/><ComboBoxItem Content="↔ · 等价" Tag="↔"/>
+       <ComboBoxItem Content="⊇ · 包含（允许相等）" Tag="⊇"/><ComboBoxItem Content="⊋ · 真包含（不相等）" Tag="⊋"/>
+       <ComboBoxItem Content="⊆ · 包含于（允许相等）" Tag="⊆"/><ComboBoxItem Content="⊊ · 真包含于（不相等）" Tag="⊊"/>
+      </ComboBox>
+      <StackPanel x:Name="OperandKindPanel" Visibility="Collapsed">
+       <TextBlock Text="作用对象类型 · OperandKind"/>
+       <ComboBox x:Name="OperandKindInput" SelectedValuePath="Tag" ToolTip="Class：逻辑语言大写；Instance：小写；Custom：保留原文。仅决定书写大小写，不自动检查引用节点。">
+        <ComboBoxItem Content="Class · 类" Tag="Class"/><ComboBoxItem Content="Instance · 实例" Tag="Instance"/><ComboBoxItem Content="Custom · 自定义" Tag="Custom"/>
+       </ComboBox>
+      </StackPanel>
+      <TextBlock Text="逻辑语言"/><TextBox x:Name="LogicInput" MaxLength="255" AcceptsReturn="False" TextWrapping="NoWrap" VerticalScrollBarVisibility="Disabled" HorizontalScrollBarVisibility="Auto" ToolTip="单行输入，不允许换行。例如：S、P、(S ∧ ¬P) → A"/>
+      <TextBlock Text="说明"/><TextBox x:Name="InfoInput" MaxLength="255" AcceptsReturn="True" TextWrapping="Wrap" Height="60" VerticalScrollBarVisibility="Auto"/>
+     </StackPanel>
+      <StackPanel x:Name="ReferencingBranchesPanel" Visibility="Collapsed" Margin="0,12,0,0">
+       <TextBlock Text="引用此 LN6 的 LN4" FontWeight="SemiBold"/>
+       <TextBlock x:Name="ReferencingBranchesStatus" TextWrapping="Wrap" Foreground="#667085" Margin="0,6,0,8"/>
+       <ListBox x:Name="ReferencingBranchesList" MaxHeight="240" BorderThickness="0" Background="Transparent" HorizontalContentAlignment="Stretch" ScrollViewer.HorizontalScrollBarVisibility="Disabled" VirtualizingStackPanel.VirtualizationMode="Recycling">
+        <ListBox.ItemTemplate>
+         <DataTemplate>
+          <Button Tag="{Binding}" Click="LocateReferencingBranch_Click" HorizontalContentAlignment="Stretch" Padding="8" Margin="0,0,0,6" BorderBrush="#DCE3ED" Background="#F5F8FC" ToolTip="点击定位；按 E 返回原 LN6 编辑窗口，保留未保存的内容">
+           <StackPanel>
+            <DockPanel>
+             <TextBlock DockPanel.Dock="Right" Text="定位" Foreground="RoyalBlue"/>
+             <TextBlock Text="{Binding Properties.Value}" FontWeight="SemiBold" Margin="0,0,12,0"/>
+             <TextBlock Text="{Binding Code}"/>
+            </DockPanel>
+            <TextBlock Text="{Binding Properties.LogicLanguage}" TextWrapping="Wrap" Margin="0,4,0,0"/>
+            <TextBlock Foreground="#667085" TextWrapping="Wrap" Margin="0,4,0,0"><Run Text="X="/><Run Text="{Binding X, StringFormat=0.0}"/><Run Text="  Y="/><Run Text="{Binding Y, StringFormat=0.0}"/><Run Text="  负责人："/><Run Text="{Binding Owner}"/></TextBlock>
+           </StackPanel>
+          </Button>
+         </DataTemplate>
+        </ListBox.ItemTemplate>
+       </ListBox>
+      </StackPanel>
+     </StackPanel>
+    </Border>
+    <Border Background="White" CornerRadius="12" Padding="20">
+     <StackPanel>
+      <TextBlock Text="线段位置" FontSize="16" FontWeight="SemiBold" Margin="0,8"/>
+      <TextBlock x:Name="AssociationStatus" Foreground="#667085" TextWrapping="Wrap"/>
+      <DataGrid x:Name="PositionsGrid" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" CanUserDeleteRows="False" EnableRowVirtualization="False" EnableColumnVirtualization="False" HeadersVisibility="Column" MaxHeight="240" Margin="0,12,0,0" HorizontalScrollBarVisibility="Auto">
+       <DataGrid.Columns>
+        <DataGridTextColumn Header="线路编码" Binding="{Binding RoadCode}" Width="120"/>
+        <DataGridTextColumn Header="段序号" Binding="{Binding RoadOrder}" Width="58"/>
+        <DataGridTextColumn Header="位置比例" Binding="{Binding RoadPercent, StringFormat=0.########}" Width="90"/>
+        <DataGridTextColumn Header="垂足 X" Binding="{Binding X, StringFormat=0.0}" Width="95"/>
+        <DataGridTextColumn Header="垂足 Y" Binding="{Binding Y, StringFormat=0.0}" Width="95"/>
+       </DataGrid.Columns>
+      </DataGrid>
+     </StackPanel>
+    </Border>
+   </StackPanel>
+  </ScrollViewer>
+  <TextBlock Grid.Row="2" x:Name="Status" TextWrapping="Wrap" Foreground="#B54708" Margin="0,16,0,16"/>
+  <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right">
+   <Button x:Name="MoveButton" Content="移动节点" ToolTip="回到地图预览新位置，左键 / A / Enter 确认，Esc 取消" Click="Move_Click"/>
+   <Button x:Name="DeleteButton" Content="删除节点" Foreground="#B42318" Click="Delete_Click"/><Button x:Name="CancelButton" Content="关闭" Click="Close_Click"/>
+   <Button x:Name="SaveButton" Content="保存节点" Background="#7C3AED" Foreground="White" Click="Save_Click"/>
+  </StackPanel>
+ </Grid>
+</Window>

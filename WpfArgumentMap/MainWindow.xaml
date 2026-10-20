@@ -1,0 +1,219 @@
+<Window x:Class="WpfArgumentMap.MainWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+ xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="clr-namespace:WpfArgumentMap"
+ Title="Argument Map" Height="800" Width="1200" MinHeight="400" MinWidth="640"
+ WindowStartupLocation="CenterScreen" Background="#F4F6F8" FontFamily="Segoe UI, Microsoft YaHei" PreviewKeyDown="Window_PreviewKeyDown">
+ <Window.Resources>
+  <Style TargetType="Button">
+   <Setter Property="Background" Value="White"/><Setter Property="Foreground" Value="#344054"/>
+   <Setter Property="BorderBrush" Value="#DCE3ED"/><Setter Property="BorderThickness" Value="1"/>
+   <Setter Property="Padding" Value="10,6"/><Setter Property="Margin" Value="0,0,6,6"/>
+   <Setter Property="Cursor" Value="Hand"/><Setter Property="ToolTipService.ShowDuration" Value="15000"/>
+   <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button">
+    <Border x:Name="Surface" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+     BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="6" Padding="{TemplateBinding Padding}">
+     <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+    </Border>
+    <ControlTemplate.Triggers>
+     <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Surface" Property="BorderBrush" Value="#7FA5DF"/><Setter TargetName="Surface" Property="Opacity" Value="0.8"/></Trigger>
+     <Trigger Property="IsPressed" Value="True"><Setter TargetName="Surface" Property="Opacity" Value="0.6"/></Trigger>
+     <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Surface" Property="BorderBrush" Value="#2563EB"/></Trigger>
+     <Trigger Property="IsEnabled" Value="False"><Setter TargetName="Surface" Property="Opacity" Value="0.4"/></Trigger>
+    </ControlTemplate.Triggers>
+   </ControlTemplate></Setter.Value></Setter>
+  </Style>
+  <Style x:Key="ToolGroup" TargetType="Border">
+   <Setter Property="Width" Value="350"/><Setter Property="Padding" Value="12,10"/>
+   <Setter Property="Margin" Value="0,0,8,8"/><Setter Property="CornerRadius" Value="8"/>
+   <Setter Property="Background" Value="White"/><Setter Property="BorderBrush" Value="#E2E8F0"/><Setter Property="BorderThickness" Value="1"/>
+  </Style>
+  <Style x:Key="GroupTitle" TargetType="TextBlock">
+   <Setter Property="Foreground" Value="#344054"/><Setter Property="FontWeight" Value="SemiBold"/><Setter Property="Margin" Value="0,0,0,9"/>
+  </Style>
+  <Style x:Key="Hint" TargetType="TextBlock">
+   <Setter Property="Foreground" Value="#667085"/><Setter Property="FontSize" Value="11"/><Setter Property="TextWrapping" Value="Wrap"/>
+  </Style>
+  <Style TargetType="MenuItem"><Setter Property="Padding" Value="8,5"/></Style>
+ </Window.Resources>
+ <Grid SizeChanged="Layout_SizeChanged">
+  <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+  <Border Background="#F5F8FC" BorderBrush="#D9E2EF" BorderThickness="0,0,0,1">
+   <StackPanel>
+    <DockPanel Margin="6,5">
+     <Button x:Name="PanelToggleButton" DockPanel.Dock="Right" Content="⌃ 收起工具栏" Click="TogglePanel_Click"
+      Padding="8,4" Margin="8,0,4,0" ToolTip="统一收起 / 展开全部按钮（Ctrl + F1）"/>
+     <TextBlock x:Name="AccountStatus" DockPanel.Dock="Right" Foreground="#667085" FontSize="11" VerticalAlignment="Center" Margin="8,0"/>
+     <Menu x:Name="MainMenu" Background="Transparent" VerticalAlignment="Center">
+      <MenuItem Header="文件(_F)">
+       <MenuItem x:Name="ReloginButton" Header="重新登录…" Click="Relogin_Click"/>
+      </MenuItem>
+      <MenuItem Header="编辑(_E)">
+       <MenuItem x:Name="UndoMapMenu" Header="撤销上一次数据库操作" InputGestureText="Ctrl+Z" Click="UndoMap_Click" ToolTip="按本账号操作顺序撤销最近 100 次操作；框选、导入和粘贴整组撤销。正在编辑的草稿须先保存或取消。"/>
+       <Separator/>
+       <MenuItem Header="新建线" InputGestureText="3" Click="NewLine_Click"/>
+       <MenuItem Header="开始绘制" InputGestureText="4" Click="BeginDrawing_Click"/>
+       <MenuItem Header="校验并保存" InputGestureText="F6" Click="CompleteLine_Click"/>
+       <MenuItem Header="取消绘制 / 修改" InputGestureText="Backspace" Click="CancelEditing_Click"/>
+       <MenuItem x:Name="AreaMoveMenu" Header="框选整体移动" InputGestureText="F7" Click="AreaMove_Click" ToolTip="拖框选择完整对象。左键 / Enter 移动，R 删除；Ctrl+C 复制整组，Ctrl+V 鼠标落点按新增粘贴。缺少完整所属线路的 Cross 跳过。"/>
+       <MenuItem x:Name="AreaDeleteMenu" Header="删除框选对象" InputGestureText="框选后 R" Click="AreaDelete_Click"/>
+       <MenuItem x:Name="ImportFlowDiagramMenu" Header="导入 ChatGPT 给我的流程图…" Click="ImportFlowDiagram_Click"/>
+       <MenuItem x:Name="FlowDiagramGuideMenu" Header="流程图制作与导入说明…" Click="FlowDiagramGuide_Click"/>
+       <Separator/>
+       <MenuItem x:Name="CopySelectionMenu" Header="复制选中的线路 / LN / 框选对象" InputGestureText="Ctrl+C" Click="CopyLn4_Click" ToolTip="支持单条线路、LN4/6/8/10/12，以及 F7 框选整组；LN18 不支持复制"/>
+       <MenuItem x:Name="PasteSelectionMenu" Header="粘贴线路 / LN / 框选对象并选择落点" InputGestureText="Ctrl+V" Click="PasteLn4_Click"/>
+       <MenuItem Header="选择线" InputGestureText="F8" Click="SelectLine_Click"/>
+       <MenuItem Header="编辑选中线路" InputGestureText="F9" Click="EditLine_Click"/>
+       <MenuItem x:Name="AdditionEndMenu" Header="从线路前端加点" InputGestureText="5" IsCheckable="True" Click="AdditionEnd_Click" ToolTip="绘制或编辑时切换前端 / 末端，然后移动鼠标按 A 连续补点"/>
+       <MenuItem x:Name="EditNodeMenu" Header="编辑最近节点的位置" InputGestureText="绘制时 E" Click="EditNode_Click"/>
+       <MenuItem x:Name="RemoveNodeMenu" Header="删除最近节点" InputGestureText="绘制时 R / Delete" Click="RemoveNode_Click"/>
+       <MenuItem Header="线路属性…" InputGestureText="选线时 E" Click="LineProperties_Click"/>
+       <MenuItem Header="反转方向" InputGestureText="C" Click="ReverseLine_Click"/>
+       <MenuItem x:Name="SplitLineMenu" Header="拆分选中线路…" InputGestureText="D" Click="SplitLine_Click"/>
+       <MenuItem x:Name="MergeLinesMenu" Header="选择合并线路 / 查看方案…" InputGestureText="B" Click="MergeLines_Click"/>
+       <MenuItem x:Name="LockLineMenu" Header="锁定线路" InputGestureText="L" IsCheckable="True" Click="LockLine_Click" ToolTip="需要编辑全部线路权限，并先完成 K 计算"/>
+       <Separator/>
+       <MenuItem Header="节点操作说明…" InputGestureText="F1" Click="Shortcuts_Click" ToolTip="A 加点、5 切换前端 / 末端、T 插点、R 删点、E 改点；查看完整操作说明"/>
+      </MenuItem>
+      <MenuItem Header="Cross 交点(_C)">
+       <MenuItem Header="计算并清理交点" InputGestureText="K" Click="CalculateCross_Click"/>
+       <MenuItem Header="选择交点" InputGestureText="U" Click="SelectCross_Click"/>
+       <MenuItem Header="记住选中的出口线路" InputGestureText="Enter" Click="RememberCrossExit_Click" ToolTip="先按 F8 选择出口线路，再按 Enter，随后 U 选交点、【 设置单向换路"/>
+       <Separator/>
+       <MenuItem Header="设为连通" InputGestureText="I" Click="ConnectCross_Click"/>
+       <MenuItem Header="设为不连通" InputGestureText="O" Click="DisconnectCross_Click"/>
+       <MenuItem Header="重置为未设置" InputGestureText="P" Click="ResetCross_Click"/>
+       <MenuItem Header="出口线路 → 另一条线路（单向）" InputGestureText="【 / [" Click="OneWayCross_Click"/>
+       <Separator/>
+       <MenuItem Header="刷新交点" InputGestureText="F3" Click="RefreshCross_Click"/>
+       <MenuItem Header="切换同位置的关系" InputGestureText="Tab" Click="CycleCross_Click"/>
+      </MenuItem>
+      <MenuItem Header="LN 逻辑节点(_N)">
+       <MenuItem Header="选择边长并落点…" InputGestureText="F5" Click="LogicalNodeMode_Click"/>
+       <MenuItem x:Name="NewLogicalNodeMenu" Header="直接新增逻辑节点" InputGestureText="LN 模式：A" Click="NewLogicalNode_Click"/>
+       <MenuItem Header="选择逻辑节点" InputGestureText="LN 模式：7" Click="SelectLogicalNode_Click"/>
+       <MenuItem Header="编辑 / 删除逻辑节点…" InputGestureText="LN 模式：E" Click="EditLogicalNode_Click"/>
+       <MenuItem x:Name="CopyLn4Menu" Header="复制选中的 LN4 / 6 / 8 / 10 / 12" InputGestureText="Ctrl+C" Click="CopyLn4_Click"/>
+       <MenuItem x:Name="PasteLn4Menu" Header="粘贴 LN 并选择落点" InputGestureText="Ctrl+V" Click="PasteLn4_Click"/>
+       <Separator/>
+       <MenuItem Header="重算全部线段位置" InputGestureText="J" Click="CalculateLogicalNodes_Click"/>
+       <MenuItem Header="刷新逻辑节点" InputGestureText="F4" Click="RefreshLogicalNodes_Click"/>
+       <MenuItem x:Name="LogicalNodeProtectionMenu" Header="显示保护区域" InputGestureText="G" IsCheckable="True" Click="LogicalNodeProtectionMenu_Click" ToolTip="同心虚线正方形，边长为 LN 边长 × 3 − 1；仅作线路规划参考"/>
+       <Separator/>
+       <MenuItem x:Name="FocusLogicalNodeMenu" Header="定位选中的逻辑节点" Click="FocusLogicalNode_Click"/>
+      </MenuItem>
+      <MenuItem Header="视图(_V)">
+       <MenuItem x:Name="ToolbarMenu" Header="显示工具栏" InputGestureText="Ctrl + F1" IsCheckable="True" IsChecked="True" Click="TogglePanel_Click"/>
+       <MenuItem x:Name="ArrowMenu" Header="显示方向箭头" InputGestureText="1" IsCheckable="True" Click="ArrowMenu_Click"/>
+       <MenuItem x:Name="LogicalNodeLabelsMenu" Header="显示 LN 文字标签" IsCheckable="True" IsChecked="True" Click="LogicalNodeLabelsMenu_Click" ToolTip="显示 / 隐藏 LN 的值、逻辑语言和选中信息；标签背景为 70% 透明"/>
+       <MenuItem x:Name="LineSpeedsMenu" Header="显示线路速度" IsCheckable="True" Click="LineSpeedsMenu_Click"/>
+       <Separator/>
+       <MenuItem x:Name="ConnectedCrossesMenu" Header="显示连通路口（含单向换路）" InputGestureText="8" IsCheckable="True" IsChecked="True" Click="ConnectedCrossesMenu_Click"/>
+       <MenuItem x:Name="DisconnectedCrossesMenu" Header="显示不连通路口" InputGestureText="9" IsCheckable="True" IsChecked="True" Click="DisconnectedCrossesMenu_Click"/>
+       <MenuItem x:Name="UnsetCrossesMenu" Header="显示未设置路口" InputGestureText="0" IsCheckable="True" IsChecked="True" Click="UnsetCrossesMenu_Click"/>
+       <Separator/>
+       <MenuItem Header="放大" InputGestureText="+" Click="ZoomIn_Click"/>
+       <MenuItem Header="缩小" InputGestureText="−" Click="ZoomOut_Click"/>
+       <MenuItem Header="回到中心" InputGestureText="Home" Click="ResetView_Click"/>
+       <MenuItem Header="查看全部线路" Click="FitView_Click"/>
+       <Separator/>
+       <MenuItem Header="刷新线路" InputGestureText="F2" Click="RefreshLines_Click"/>
+      </MenuItem>
+      <MenuItem Header="帮助(_H)">
+       <MenuItem Header="快捷键与操作说明…" InputGestureText="F1" Click="Shortcuts_Click"/>
+      </MenuItem>
+     </Menu>
+    </DockPanel>
+    <ScrollViewer x:Name="ToolPanel" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" MaxHeight="240" Padding="12,4,4,0">
+     <WrapPanel>
+      <Border Style="{StaticResource ToolGroup}">
+       <StackPanel>
+        <TextBlock Text="绘制与编辑" Style="{StaticResource GroupTitle}"/>
+        <WrapPanel>
+         <Button Content="新建线  3" Click="NewLine_Click" ToolTip="3：新建一条线路"/>
+         <Button Content="开始绘制  4" Click="BeginDrawing_Click" ToolTip="4：开始绘制；A 在鼠标位置添加节点"/>
+         <Button Content="校验保存  F6" Click="CompleteLine_Click" Background="#2563EB" Foreground="White" BorderBrush="#2563EB" ToolTip="F6：超过 500 的段按接近中点的合法整数点自动细分，避开 LN 和已有节点；校验八方向、重复、重叠、锐角及第三线经过 Cross，保存整条线路"/>
+         <Button Content="取消  Backspace" Click="CancelEditing_Click" ToolTip="Backspace：取消当前绘制或修改"/>
+         <Button Content="选择线  F8" Click="SelectLine_Click" ToolTip="F8：切换选择模式；移动鼠标靠近线路"/>
+         <Button x:Name="AreaMoveButton" Content="框选移动  F7" Click="AreaMove_Click" ToolTip="F7 拖框选完整对象。左键 / Enter 移动，R 删除；Ctrl+C 复制整组，Ctrl+V 鼠标落点按新增粘贴，Esc 取消。"/>
+         <Button Content="编辑线  F9" Click="EditLine_Click" ToolTip="F9：编辑当前选中的线路"/>
+         <Button x:Name="AdditionEndButton" Content="末端加点  5" Click="AdditionEnd_Click" ToolTip="5：切换前端 / 末端加点；移动鼠标，A 连续添加，F6 校验保存"/>
+         <Button x:Name="EditNodeButton" Content="编辑节点  E" Click="EditNode_Click" ToolTip="绘制/编辑时，E 选最近节点，移动鼠标后 E / Enter 确认最近合法整数位置，Esc 取消；F6 最终保存"/>
+         <Button x:Name="RemoveNodeButton" Content="删除节点  R" Click="RemoveNode_Click" ToolTip="绘制/编辑时，R 或 Delete 删除鼠标最近的节点；删除后须保持八方向，F6 再校验整条线路"/>
+        </WrapPanel>
+        <TextBlock Text="A 加点 · 5 切换前/后端 · T 插点 · R 删点 · E 改点（再次 E / Enter 确认，Esc 取消）" Style="{StaticResource Hint}"/>
+       </StackPanel>
+      </Border>
+      <Border Style="{StaticResource ToolGroup}">
+       <StackPanel>
+        <TextBlock Text="线路与视图" Style="{StaticResource GroupTitle}"/>
+        <WrapPanel>
+         <Button Content="线路属性" Click="LineProperties_Click" ToolTip="选线状态 E：设置线路名称、说明、单向 / 双向和速度（5–500）；绘制状态 E 编辑节点位置"/>
+         <Button x:Name="LockLineButton" Content="锁定  L" Click="LockLine_Click" ToolTip="L：锁定 / 解锁；需要编辑全部线路权限并完成 K 计算。锁定线路显示绿色"/>
+         <CheckBox x:Name="ArrowToggle" Content="箭头  1" VerticalAlignment="Center" Margin="2,0,0,6" Checked="ArrowToggle_Changed" Unchecked="ArrowToggle_Changed" ToolTip="1：显示 / 隐藏方向箭头；单向显示正向箭头，双向显示成对箭头"/>
+         <CheckBox x:Name="LogicalNodeLabelsToggle" Content="LN 标签" IsChecked="True" VerticalAlignment="Center" Margin="8,0,0,6" Checked="LogicalNodeLabelsToggle_Changed" Unchecked="LogicalNodeLabelsToggle_Changed" ToolTip="显示 / 隐藏 LN 文字标签；背景 70% 透明，文字保持清晰"/>
+         <CheckBox x:Name="LineSpeedsToggle" Content="速度" VerticalAlignment="Center" Margin="8,0,0,6" Checked="LineSpeedsToggle_Changed" Unchecked="LineSpeedsToggle_Changed" ToolTip="默认隐藏；开启时显示方向箭头，并在部分箭头旁标注线路速度。关闭箭头时速度一并隐藏"/>
+         <Button Content="反转方向  C" Click="ReverseLine_Click" ToolTip="C：倒转节点顺序；草稿按 F6 保存，已保存线路直接提交。然后按 K 重算交点"/>
+         <Button x:Name="SplitLineButton" Content="拆分  D" Click="SplitLine_Click" ToolTip="F8 选线，鼠标靠近中间节点后 D，在它之前断开；Cross 和 LN 位置同时同步"/>
+         <Button x:Name="MergeLinesButton" Content="合并  B" Click="MergeLines_Click" ToolTip="仅可合并当前登录用户的两条线路。F8 选第一条线、B，再选第二条、B；按连接方向预览合法方案后确认合并"/>
+         <Button Content="−" Width="32" Click="ZoomOut_Click" ToolTip="缩小（− 或鼠标滚轮）"/>
+         <Button Content="＋" Width="32" Click="ZoomIn_Click" ToolTip="放大（＋ 或鼠标滚轮）"/>
+         <Button Content="回到中心" Click="ResetView_Click" ToolTip="Home：回到坐标 (250000, 250000)"/>
+         <Button Content="查看全部" Click="FitView_Click" ToolTip="调整视图，显示全部已保存线路"/>
+        </WrapPanel>
+        <TextBlock Text="左键拖动平移 · 滚轮缩放 · F2 刷新线路" Style="{StaticResource Hint}"/>
+       </StackPanel>
+      </Border>
+      <Border Style="{StaticResource ToolGroup}">
+       <StackPanel>
+        <TextBlock Text="Cross · 交点与通行" Style="{StaticResource GroupTitle}"/>
+        <WrapPanel>
+         <Button Content="计算交点  K" Click="CalculateCross_Click" ToolTip="K：后台逐段独立事务计算，可继续操作 LN 和线路；前台请求优先。使用最新已保存数据，未保存草稿不参与；保留原设置并清理失效交点。重复 K 不会启动第二轮"/>
+         <Button Content="选择交点  U" Click="SelectCross_Click" ToolTip="U：选择交点；移动鼠标靠近交点"/>
+         <Button Content="记住出口线  Enter" Click="RememberCrossExit_Click" ToolTip="先按 F8 选线路、Enter 记住，再 U 选交点、【 设置该线路的单向出口"/>
+         <Button Content="连通  I" Click="ConnectCross_Click" ToolTip="I：设为连通"/>
+         <Button Content="不连通  O" Click="DisconnectCross_Click" ToolTip="O：设为不连通"/>
+         <Button Content="重置  P" Click="ResetCross_Click" ToolTip="P：恢复为未设置"/>
+         <Button Content="单向换路  【" Click="OneWayCross_Click" ToolTip="【 / [：记住的出口线路只能转入另一条线路；不能反向转入它。Shift 同样保存，只跳过重新拉取交点"/>
+         <Button Content="刷新  F3" Click="RefreshCross_Click" ToolTip="F3：刷新交点设置"/>
+        </WrapPanel>
+        <WrapPanel>
+         <CheckBox x:Name="ConnectedCrossesToggle" Content="连通  8" Foreground="#238257" IsChecked="True" Margin="0,0,8,3" Checked="ConnectedCrossesToggle_Changed" Unchecked="ConnectedCrossesToggle_Changed" ToolTip="8：显示 / 隐藏连通类路口，包含两个方向的单向换路；隐藏后不参与 U 选择"/>
+         <CheckBox x:Name="DisconnectedCrossesToggle" Content="不连通  9" Foreground="#7C8799" IsChecked="True" Margin="0,0,8,3" Checked="DisconnectedCrossesToggle_Changed" Unchecked="DisconnectedCrossesToggle_Changed" ToolTip="9：显示 / 隐藏不连通路口"/>
+         <CheckBox x:Name="UnsetCrossesToggle" Content="未设置  0" Foreground="#D74949" IsChecked="True" Margin="0,0,0,3" Checked="UnsetCrossesToggle_Changed" Unchecked="UnsetCrossesToggle_Changed" ToolTip="0：显示 / 隐藏未设置路口；三个开关全关即隐藏全部 Cross"/>
+        </WrapPanel>
+        <TextBlock Text="Tab 切换同一位置的线路关系" Style="{StaticResource Hint}" Margin="0,3,0,0"/>
+        <TextBlock Style="{StaticResource Hint}" Margin="0,3,0,0"><Run Foreground="#1E40AF" Text="● Road1 → Road2"/><Run Text="  "/><Run Foreground="#38A6CF" Text="● Road2 → Road1"/></TextBlock>
+        <TextBlock x:Name="CrossExitLineStatus" Text="出口线路：未选择（F8 选线 → Enter）" Style="{StaticResource Hint}" Margin="0,3,0,0" TextWrapping="Wrap"/>
+       </StackPanel>
+      </Border>
+      <Border Style="{StaticResource ToolGroup}">
+       <StackPanel>
+        <TextBlock Text="LN · 逻辑节点" Style="{StaticResource GroupTitle}"/>
+        <WrapPanel>
+         <Button x:Name="LogicalNodeModeButton" Content="新增落点  F5" Click="LogicalNodeMode_Click" ToolTip="F5：选择 4 / 6 / 12 / 18 后左键落点；4 可用于是／否分支，18 为全图唯一开始节点"/>
+         <Button x:Name="NewLogicalNodeButton" Content="新增  A" Click="NewLogicalNode_Click" ToolTip="F5 选择边长后，A 在鼠标位置直接校验并保存；不弹属性窗口"/>
+         <Button Content="选择  7" Click="SelectLogicalNode_Click"/>
+         <Button x:Name="EditLogicalNodeButton" Content="编辑  E" Click="EditLogicalNode_Click" ToolTip="7 选择 LN，E 编辑值、逻辑语言和说明；也可双击节点或文字打开编辑窗口"/>
+         <Button Content="计算关联  J" Click="CalculateLogicalNodes_Click" ToolTip="J：后台逐个 LN 提交位置计算；期间各用户可新增、编辑、框选移动和导入"/>
+         <Button Content="刷新  F4" Click="RefreshLogicalNodes_Click"/>
+        </WrapPanel>
+        <CheckBox x:Name="LogicalNodeProtectionToggle" Content="显示保护区域  G" Margin="0,0,0,6" Checked="LogicalNodeProtectionToggle_Changed" Unchecked="LogicalNodeProtectionToggle_Changed" ToolTip="默认隐藏。外围虚线正方形与 LN 同心，边长 = LN 边长 × 3 − 1；仅供规划线路，不限制通行或编辑"/>
+        <TextBlock Text="F5 选边长 → A / 左键连续新增 · Esc 结束 · 18 为唯一开始" Style="{StaticResource Hint}"/>
+        <TextBlock Text="LN 不重叠、不接触；内无线路节点，Cross 仅不连通" Style="{StaticResource Hint}" Margin="0,3,0,0"/>
+        <TextBlock Text="LN4/6/8/10/12：Ctrl+C 复制 → Ctrl+V → 鼠标落点、左键确认" Style="{StaticResource Hint}" Margin="0,3,0,0"/>
+       </StackPanel>
+      </Border>
+     </WrapPanel>
+    </ScrollViewer>
+   </StackPanel>
+  </Border>
+  <local:CoordinateMapView x:Name="MapView" Grid.Row="1"/>
+  <Border Grid.Row="2" Background="White" BorderBrush="#D9DFE7" BorderThickness="0,1,0,0" Padding="12,7">
+   <StackPanel>
+    <TextBlock x:Name="EditingStatus" Foreground="#228459" Margin="0,0,0,4" TextWrapping="Wrap"/>
+    <TextBlock x:Name="CrossCalculationStatus" Foreground="#3478C8" Visibility="Collapsed" Margin="0,0,0,4" TextWrapping="Wrap"/>
+    <TextBlock x:Name="LogicalNodeCalculationStatus" Foreground="#3478C8" Visibility="Collapsed" Margin="0,0,0,4" TextWrapping="Wrap"/>
+    <TextBlock x:Name="ViewStatus" Foreground="#475467" FontFamily="Consolas, Microsoft YaHei" TextTrimming="CharacterEllipsis"/>
+   </StackPanel>
+  </Border>
+ </Grid>
+</Window>
