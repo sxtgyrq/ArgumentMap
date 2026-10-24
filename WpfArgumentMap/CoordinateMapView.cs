@@ -69,6 +69,7 @@ public sealed partial class CoordinateMapView : FrameworkElement
     private bool isPlacingLogicalNode;
     public bool IsPlacingLogicalNode { get=>isPlacingLogicalNode;private set{isPlacingLogicalNode=value;if(!value){pastedLogicalNodeProperties=null;instancePlacementProperties=null;}} }
     private LogicalNodeProperties? instancePlacementProperties;
+    private string? instancePlacementParentCode;
     public LogicalNodeSnapshot[] InstanceParents=>logicalNodes.Nodes.Where(LogicalNodeInstanceRules.CanInstantiate).OrderBy(n=>n.Properties.Value,StringComparer.Ordinal).ToArray();
     public bool IsMovingLogicalNode => logicalNodes.Moving is not null;
     public bool IsAreaMoveMode=>areaMove.IsActive;
@@ -93,9 +94,9 @@ public sealed partial class CoordinateMapView : FrameworkElement
     public int LineCount => editor.Lines.Count;
     public int CrossCount => crossEditor.Crosses.Count;
     public string? CrossExitLineCode => crossEditor.ExitLineCode;
-    public string EditingStatus => IsPastingArea ? "整组粘贴" : IsPastingLine ? "粘贴线路" : IsFlowDiagramImportActive ? "导入流程图" : IsAreaMoveMode ? "框选移动" : IsMovingLogicalNode ? "LN 移动模式" : logicalNodes.IsActive ? logicalNodes.Mode == LogicalNodeMode.Selecting ? "LN 选择模式" : "LN 模式" : crossEditor.IsSelecting ? "交点选择模式" : editor.ModeText;
-    public string OperationMessage => flowImportAction || IsFlowDiagramImportActive ? flowImportMessage : areaMoveAction || IsAreaMoveMode ? areaMove.Message : logicalNodeAction || logicalNodes.IsActive ? logicalNodes.Message : crossAction ? crossEditor.Message : editor.Message;
-    public bool IsSaving => undoBusy || editor.IsBusy || crossEditor.IsBusy || logicalNodes.IsBusy || areaMove.IsBusy || IsFlowDiagramImportBusy || linePasteBusy || areaPasteBusy;
+    public string EditingStatus => IsConnectingNodes ? "LN 连接" : IsPastingArea ? "整组粘贴" : IsPastingLine ? "粘贴线路" : IsFlowDiagramImportActive ? "导入流程图" : IsAreaMoveMode ? "框选移动" : IsMovingLogicalNode ? "LN 移动模式" : logicalNodes.IsActive ? logicalNodes.Mode == LogicalNodeMode.Selecting ? "LN 选择模式" : "LN 模式" : crossEditor.IsSelecting ? "交点选择模式" : editor.ModeText;
+    public string OperationMessage => IsConnectingNodes ? connectionMessage : flowImportAction || IsFlowDiagramImportActive ? flowImportMessage : areaMoveAction || IsAreaMoveMode ? areaMove.Message : logicalNodeAction || logicalNodes.IsActive ? logicalNodes.Message : crossAction ? crossEditor.Message : editor.Message;
+    public bool IsSaving => connectionBusy || undoBusy || editor.IsBusy || crossEditor.IsBusy || logicalNodes.IsBusy || areaMove.IsBusy || IsFlowDiagramImportBusy || linePasteBusy || areaPasteBusy;
     public bool IsCalculatingCrosses=>crossEditor.IsCalculating;
     public string CrossCalculationMessage=>crossEditor.CalculationMessage;
     internal void StopCrossCalculation()=>crossEditor.CancelCalculation();
@@ -138,11 +139,12 @@ public sealed partial class CoordinateMapView : FrameworkElement
         linePasteClient=client as ILinePasteClient;
         areaPasteClient=client as IMapAreaPasteClient;
         undoClient=client as IMapUndoClient;
+        connectionClient=client as ILogicalNodeConnectionClient;
     }
     public bool BeginAreaMove()
     {
         if(IsSaving)return false;
-        if(IsFlowDiagramImportActive||IsPastingLine||IsPastingArea){PendingMapOperation();return false;}
+        if(IsConnectingNodes||IsFlowDiagramImportActive||IsPastingLine||IsPastingArea){PendingMapOperation();return false;}
         flowImportAction=false;
         areaMoveAction=true;
         if(editor.Mode is LineEditorMode.Ready or LineEditorMode.Drawing || IsMovingLogicalNode)
@@ -205,6 +207,7 @@ public sealed partial class CoordinateMapView : FrameworkElement
     }
     private bool PendingMapOperation()
     {
+        if(IsConnectingNodes){connectionMessage="正在连接两个 LN：Enter / F6 确认预览，Esc 取消后再进行其他编辑。";Refresh();return true;}
         if(IsPastingArea){ClipboardNotice("正在整组粘贴：左键 / Enter 按新增保存，Esc 取消后再进行其他编辑。");return true;}
         if(IsPastingLine){ClipboardNotice("正在粘贴线路：左键校验并保存，Esc 取消后再进行其他编辑。");return true;}
         if(IsFlowDiagramImportActive){flowImportMessage="正在导入流程图，请在导入窗口选择插入点、校验预览或取消。";Refresh();return true;}
@@ -238,10 +241,11 @@ public sealed partial class CoordinateMapView : FrameworkElement
     }
     public Task<bool> NewLineAsync() => RunCommandAsync(editor.NewLineAsync);
     public Task<bool> BeginDrawingAsync() => RunCommandAsync(editor.BeginDrawingAsync);
-    public Task<bool> CompleteLineAsync() => RunCommandAsync(editor.CompleteAsync);
+    public Task<bool> CompleteLineAsync() => IsConnectingNodes?SaveLogicalNodeConnectionAsync():RunCommandAsync(editor.CompleteAsync);
     public Task<bool> RefreshLinesAsync() => RunCommandAsync(editor.RefreshLinesAsync);
     public void CancelEditing()
     {
+        if(IsConnectingNodes){CancelLogicalNodeConnection();return;}
         if (IsSaving) return;
         if(IsPastingArea){CancelAreaPaste();return;}
         if(IsPastingLine){CancelLinePaste();return;}
@@ -456,9 +460,10 @@ public sealed partial class CoordinateMapView : FrameworkElement
     public bool BeginInstancePlacement(LogicalNodeSnapshot parent)
     {
         if(!LogicalNodeInstanceRules.CanInstantiate(parent)||!BeginLogicalNodePlacement(10))return false;
-        var value=LogicalNodeInstanceRules.Normalize(parent.Properties.Value);
+        var value=LogicalNodeInstanceRules.DefaultValue(parent.Properties.Value,"新节点编码");
+        instancePlacementParentCode=parent.Code;
         instancePlacementProperties=new(){Value=value,LogicLanguage=LogicalNodeInstanceRules.Expression(value)};
-        logicalNodes.Notify($"新增 LN10：{value} ∈ {parent.Properties.Value}。鼠标选落点，左键 / A 连续新增，Esc 取消；保存时重新核对所属 LN12。");
+        logicalNodes.Notify($"新增 LN10：{LogicalNodeInstanceRules.Expression(value)}。保存时用新节点编码补临时 id，可编辑为 id=1 或 name=名称；鼠标选落点，左键 / A 连续新增，Esc 取消。");
         Refresh();Focus();return true;
     }
     public bool BeginLogicalNodeMove(LogicalNodeSnapshot node)
@@ -503,7 +508,8 @@ public sealed partial class CoordinateMapView : FrameworkElement
         }
         if (violation is not null) { logicalNodes.Notify(violation.Message); Refresh(); return false; }
         var pasted=pastedLogicalNodeProperties;
-        var task=logicalNodes.CreateAsync(x,y,LogicalNodePlacementSize,pasted??instancePlacementProperties);
+        var task=logicalNodes.CreateAsync(x,y,LogicalNodePlacementSize,pasted??instancePlacementProperties,
+            pasted is null&&instancePlacementProperties is not null?instancePlacementParentCode:null);
         Refresh();
         try
         {
@@ -557,6 +563,13 @@ public sealed partial class CoordinateMapView : FrameworkElement
             case Key.D8:case Key.NumPad8:SetCrossVisibility(!ShowConnectedCrosses,ShowDisconnectedCrosses,ShowUnsetCrosses);return true;
             case Key.D9:case Key.NumPad9:SetCrossVisibility(ShowConnectedCrosses,!ShowDisconnectedCrosses,ShowUnsetCrosses);return true;
             case Key.D0:case Key.NumPad0:SetCrossVisibility(ShowConnectedCrosses,ShowDisconnectedCrosses,!ShowUnsetCrosses);return true;
+        }
+        if(IsConnectingNodes)
+        {
+            if(key==Key.Escape){CancelLogicalNodeConnection();return true;}
+            if(key==Key.Back){ResetConnectionTarget();return true;}
+            if(key is Key.Enter or Key.F6){await SaveLogicalNodeConnectionAsync();return true;}
+            if(IsEditorKey(key)){PendingMapOperation();return true;}
         }
         if(IsPastingArea)
         {
@@ -710,6 +723,7 @@ public sealed partial class CoordinateMapView : FrameworkElement
         if (e.ChangedButton != MouseButton.Left || !Plot.Contains(e.GetPosition(this))) return;
         Focus();
         lastPointer = e.GetPosition(this);
+        if(IsConnectingNodes){e.Handled=true;if(!IsSaving)PickConnectionPoint(viewport.ScreenToWorld(RelativeToPlot(e.GetPosition(this))));return;}
         if(IsPastingArea){e.Handled=true;if(!IsSaving)await PlacePastedAreaAsync(viewport.ScreenToWorld(RelativeToPlot(e.GetPosition(this))));return;}
         if(IsPastingLine){e.Handled=true;if(!IsSaving)await PlacePastedLineAsync(viewport.ScreenToWorld(RelativeToPlot(e.GetPosition(this))));return;}
         if(IsPickingFlowDiagramOrigin){e.Handled=true;if(!IsSaving)SelectFlowDiagramOrigin(AreaWorld(e.GetPosition(this)));return;}
@@ -832,6 +846,7 @@ public sealed partial class CoordinateMapView : FrameworkElement
         DrawFlowDiagramPreview(dc);
         DrawLinePastePreview(dc);
         DrawAreaPastePreview(dc);
+        DrawLogicalNodeConnection(dc);
         dc.Pop();
 
         dc.DrawRectangle(RulerBrush, null, new Rect(0, 0, ActualWidth, RulerHeight));
@@ -998,7 +1013,7 @@ public sealed partial class CoordinateMapView : FrameworkElement
     {
         foreach (var cross in crossEditor.Crosses.OrderBy(cross => cross.Key == crossEditor.SelectedKey ? 1 : 0))
         {
-            if(!crossEditor.IsVisible(cross.State))continue;
+            if(!cross.Key.IsValid||!crossEditor.IsVisible(cross.State))continue;
             if (cross.Key.RoadCode1 == editor.DraftCode || cross.Key.RoadCode2 == editor.DraftCode) continue;
             var screen = ToScreen(new Point(cross.Key.Position.X, cross.Key.Position.Y));
             if (!plot.Contains(screen)) continue;
@@ -1027,7 +1042,7 @@ public sealed partial class CoordinateMapView : FrameworkElement
             var state = cross.State is CrossState.Road1ToRoad2 or CrossState.Road2ToRoad1 ? "单向换路" : cross.StateLabel;
             var relation = cross.State switch { CrossState.Road1ToRoad2 => "→", CrossState.Road2ToRoad1 => "←", CrossState.Connected => "↔", CrossState.Disconnected => "×", _ => "?" };
             var text = CreateText($"线 {cross.Key.RoadCode1}[{cross.RoadOrder1}:{cross.Percent1:0.###}] {relation} " +
-                $"{cross.Key.RoadCode2}[{cross.RoadOrder2}:{cross.Percent2:0.###}]  ({cross.Key.Position.X:0.0}, {cross.Key.Position.Y:0.0})  {state}");
+                $"{cross.Key.RoadCode2}[{cross.RoadOrder2}:{cross.Percent2:0.###}]  ({cross.Key.Position.X:0}, {cross.Key.Position.Y:0})  {state}");
             var x = Math.Clamp(screen.X + 14, plot.Left + 4, Math.Max(plot.Left + 4, plot.Right - text.Width - 12));
             var y = Math.Clamp(screen.Y + 14, plot.Top + 4, Math.Max(plot.Top + 4, plot.Bottom - text.Height - 8));
             dc.DrawRectangle(RulerBrush, null, new Rect(x - 4, y - 2, text.Width + 8, text.Height + 4));
@@ -1122,7 +1137,7 @@ public sealed partial class CoordinateMapView : FrameworkElement
     }
     public bool SelectLogicalNodeAt(Point screen)
     {
-        if(IsSaving || IsPastingArea || IsFlowDiagramImportActive || IsAreaMoveMode || IsMovingLogicalNode || IsPlacingLogicalNode || editor.Mode is LineEditorMode.Ready or LineEditorMode.Drawing)return false;
+        if(IsSaving || IsConnectingNodes || IsPastingArea || IsFlowDiagramImportActive || IsAreaMoveMode || IsMovingLogicalNode || IsPlacingLogicalNode || editor.Mode is LineEditorMode.Ready or LineEditorMode.Drawing)return false;
         if(FindLogicalNodeAt(screen) is not {} node)return false;
         editor.Cancel();crossEditor.LeaveSelection();logicalNodeAction=true;crossAction=false;
         lastPointer=screen;logicalNodes.Select(node.Code);Refresh();Focus();return true;
@@ -1156,7 +1171,7 @@ public sealed partial class CoordinateMapView : FrameworkElement
             DrawPolyline(dc,line.Nodes.Select(n=>new GridPoint(n.X+delta.X,n.Y+delta.Y)).ToArray(),pen);
         foreach(var node in selection.LogicalNodes)
             DrawNodeShape(dc,node.SideLength,NodeFill(node.SideLength),valid&&node.SideLength==8?RelationNodePen:pen,new Rect(Shift(node.Left,node.Top),Shift(node.Right,node.Bottom)));
-        foreach(var cross in selection.Crosses.Where(c=>crossEditor.IsVisible(c.State)))dc.DrawEllipse(Brushes.White,pen,Shift(cross.Key.Position.X2/2m,cross.Key.Position.Y2/2m),6,6);
+        foreach(var cross in selection.Crosses.Where(c=>c.Key.IsValid&&crossEditor.IsVisible(c.State)))dc.DrawEllipse(Brushes.White,pen,Shift(cross.Key.Position.X2/2m,cross.Key.Position.Y2/2m),6,6);
         var top=Shift(bounds.Left,bounds.Top);
         dc.DrawText(CreateText($"整体偏移 ({delta.X}, {delta.Y}) · 左键 / Enter 校验落点 · Esc 取消"),new(top.X,top.Y-20));
     }

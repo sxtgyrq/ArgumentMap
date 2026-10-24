@@ -81,13 +81,10 @@ internal static class CrossEditChecks
         var half = Save((200, 200), (210, 210));
         Save((200, 209), (209, 200));
         Calculate();
-        var fractional = crosses.GetAll().Data!.Single(cross => cross.Key.Position.X == 204.5);
-        fractional = crosses.Edit(new(fractional.Key, half.Owner, fractional.Version, CrossState.Connected)).Data!;
+        Check(!crosses.GetAll().Data!.Any(cross => cross.Key.Contains(half.Code)), "Half-integer geometric contact creates no Cross");
         half = lines.CheckShapeIsOKThenSave(Shape(half, (200, 200), (202, 202), (210, 210))).Data!;
         Calculate();
-        var changedHalf = crosses.GetAll().Data!.Single(cross => cross.Key == fractional.Key);
-        Check(changedHalf.Key.Position == new CrossPosition(409, 409) && changedHalf.LocationOn(half.Code).RoadOrder == 1 && changedHalf.LocationOn(half.Code).Percent == 0.3125 &&
-            changedHalf.State == CrossState.Connected, "Half coordinate and unrounded percentage survive insertion before Cross");
+        Check(!crosses.GetAll().Data!.Any(cross => cross.Key.Contains(half.Code)), "Inserting an integer node does not materialize or round a half-integer contact");
         var nodeRoute = new[] { new LineNode("AAAAAAAAAA", 0, 10, 10), new LineNode("AAAAAAAAAA", 1, 20, 10), new LineNode("AAAAAAAAAA", 2, 20, 20),
             new LineNode("AAAAAAAAAA", 3, 10, 20), new LineNode("AAAAAAAAAA", 4, 30, 0) };
         Check(LineGeometry.LocateCross(nodeRoute, 3, new(40, 20)) == (1, 0.0),
@@ -142,7 +139,7 @@ internal static class CrossEditChecks
         await editor.EditSelectedAsync();
         await editor.RemoveAsync(new Point(1040, 1000));
         Check(await editor.CompleteAsync(), "Deleting terminal node saves shortened polyline");
-        Check((await client.GetCrossesAsync()).Data!.Length == 1, "Cross remains marked until K's final sweep");
+        Check((await client.GetCrossesAsync()).Data!.Length == 0, "Cross is hidden immediately while marked for K's final sweep");
         await Calculate();
         Check((await client.GetCrossesAsync()).Data!.Length == 0, "K removes Cross lost after endpoint deletion");
         Check(CoordinateMapView.IsEditorKey(Key.T), "T routed to insertion as in old editor");

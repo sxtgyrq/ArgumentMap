@@ -50,6 +50,7 @@ public sealed class InMemoryLineRepository : ILineRepository
             var result = operation(working);
             if (result is not IServiceResult { Success: false })
             {
+                CrossCoordinateRules.EnsureValid(working.Crosses.Values);
                 LogicalNodeTextRules.EnsureChangesValid(state.LogicalNodes.Values,working.LogicalNodes.Values);
                 LogicalNodeCoordinateRules.EnsureValid(working.LogicalNodes.Values);
                 LogicalNodeValueUniqueness.EnsureValid(working.LogicalNodes.Values);

@@ -4,6 +4,12 @@ namespace ArgumentMap.Rules;
 
 public static class LineGeometry
 {
+    public static bool TryCrossIntersection(LineNode a, LineNode b, LineNode c, LineNode d, out CrossPosition position)
+    {
+        if(TryIntersection(a,b,c,d,out position) && position.IsInteger)return true;
+        position=default;return false;
+    }
+
     public static (int Segment, double Percent) LocateCross(IReadOnlyList<LineNode> nodes, int segment, CrossPosition position)
     {
         // Prefer the node's outgoing segment even when another segment of the same line passes through it.

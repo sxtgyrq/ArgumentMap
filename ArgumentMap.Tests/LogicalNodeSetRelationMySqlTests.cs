@@ -47,19 +47,19 @@ public sealed class LogicalNodeSetRelationMySqlTests
         var after=LineTopologyMySqlTests.RawSnapshot(settings);new MySqlLineRepository(settings);Assert.AreEqual(after,LineTopologyMySqlTests.RawSnapshot(settings));return Task.CompletedTask;
     });
 
-    [TestMethod,DataRow("⊊"),DataRow("↔")]
+    [TestMethod,DataRow("⊊"),DataRow("↔"),DataRow("¬")]
     public Task FreshSchemaAndHttpSupportAllSymbols_SqlRejectsMismatchAndOtherValues_ImportRollsBack(string importedValue)=>Isolated(async settings=>
     {
         var repository=new MySqlLineRepository(settings);await using var server=await LocalLineServer.StartAsync(repository:repository);
         using var http=new HttpClient{BaseAddress=server.BaseAddress};var client=await TestLogin.ClientAsync(http,server,"owner");
-        var symbols=new[]{"=","→","↔","⊇","⊋","⊆","⊊"};
+        var symbols=new[]{"=","→","↔","¬","⊇","⊋","⊆","⊊"};
         foreach(var value in symbols)
         {
             var result=await client.CreateLogicalNodeAsync(50.5m+Array.IndexOf(symbols,value)*30,50.5m,8,new(){Value=value,LogicLanguage="ignored"});Assert.IsTrue(result.Success,result.Message);
-            var node=result.Data!;Assert.AreEqual(value,node.Properties.LogicLanguage);
-            var changed=await client.UpdateLogicalNodeAsync(node.Code,node.Version,value,"preserved","also ignored");Assert.IsTrue(changed.Success,changed.Message);Assert.AreEqual(value,changed.Data!.Properties.LogicLanguage);
+            var node=result.Data!;Assert.AreEqual(LogicalNodeRelationRules.Expression(value),node.Properties.LogicLanguage);
+            var changed=await client.UpdateLogicalNodeAsync(node.Code,node.Version,value,"preserved","also ignored");Assert.IsTrue(changed.Success,changed.Message);Assert.AreEqual(LogicalNodeRelationRules.Expression(value),changed.Data!.Properties.LogicLanguage);
             // Both checks apply to raw SQL, not only HTTP and the DAL.
-            Sql(settings,$"UPDATE LogicalNodes SET `Value`='{value}', LogicLanguage='{value}' WHERE Code='{node.Code}'");
+            Sql(settings,$"UPDATE LogicalNodes SET `Value`='{value}', LogicLanguage='{LogicalNodeRelationRules.Expression(value)}' WHERE Code='{node.Code}'");
             var before=LineTopologyMySqlTests.RawSnapshot(settings);
             Assert.AreEqual(3819,Assert.ThrowsExactly<MySqlException>(()=>Sql(settings,$"UPDATE LogicalNodes SET LogicLanguage='P' WHERE Code='{node.Code}'")).Number);
             foreach(var invalid in new[]{"⊂","⊃","∈","包含","⊆ "})

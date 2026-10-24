@@ -7,6 +7,7 @@ public sealed partial class CoordinateMapView
     private LogicalNodeProperties? pastedLogicalNodeProperties;
     internal void ClipboardNotice(string message)
     {
+        if(IsConnectingNodes){connectionMessage=message;Refresh();return;}
         if(IsAreaMoveMode||IsPastingArea){areaMoveAction=true;areaMove.Notify(message);}
         else {logicalNodeAction=true;logicalNodes.Notify(message);}
         Refresh();

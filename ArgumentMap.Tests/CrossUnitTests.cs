@@ -45,9 +45,11 @@ public sealed class CrossUnitTests
     {
         var (map, a, b, cross) = Pair(); cross = map.Crosses.Edit(new(cross.Key, a.Owner, cross.Version, CrossState.Connected)).Data!;
         a = map.Save(a, 100, 111, 120, 111);
-        Assert.IsTrue(map.Crosses.GetAll().Data!.Contains(cross));
+        Assert.AreEqual(cross, map.Repository.Transaction(s => s.Crosses[cross.Key]));
+        Assert.IsFalse(map.Crosses.GetAll().Data!.Contains(cross));
         Assert.IsTrue(map.Crosses.Calculate().Data!.CanContinue);
-        Assert.AreEqual(2, map.Crosses.GetAll().Data!.Length);
+        Assert.AreEqual(2, map.Repository.Transaction(s => s.Crosses.Count));
+        Assert.AreEqual(1, map.Crosses.GetAll().Data!.Length);
         Assert.IsFalse(map.Crosses.Calculate().Data!.CanContinue);
         var current = map.Between(a, b);
         Assert.AreNotEqual(cross.Key, current.Key); Assert.AreEqual(CrossState.Unset, current.State);
@@ -101,7 +103,8 @@ public sealed class CrossUnitTests
     {
         var (map, a, b, cross) = Pair(); map.Save(a, 100, 112, 120, 112);
         map.Save(b, 110, 112, 110, 120); // Clear the old coordinate without making a new 45-degree intersection.
-        Assert.IsTrue(map.Crosses.GetAll().Data!.Contains(cross));
+        Assert.AreEqual(cross, map.Repository.Transaction(s => s.Crosses[cross.Key]));
+        Assert.IsFalse(map.Crosses.GetAll().Data!.Contains(cross));
         map.Add(109, 109, 111, 111); map.Calculate();
         Assert.IsFalse(map.Crosses.GetAll().Data!.Any(c => c.Key == cross.Key));
         Assert.IsNull(map.Repository.Transaction(CrossPassageValidator.FindThroughCalculatedCrosses));

@@ -178,13 +178,12 @@ public sealed class MapAreaMoveTests
     }
 
     [TestMethod]
-    public void PerpendicularDiagonalRoadsKeepHalfIntegerCrossAndRoadLength_AfterNegativeTranslation()
+    public void PerpendicularDiagonalRoadsIgnoreHalfIntegerCrossAndKeepLength_AfterNegativeTranslation()
     {
-        var map=new TestMap();var a=map.Add(20,20,81,81);var b=map.Add(20,81,81,20);map.Calculate();var original=map.Between(a,b);
-        Assert.AreEqual(new CrossPosition(101,101),original.Key.Position);
-        Assert.IsTrue(map.Crosses.Edit(new(original.Key,"owner",original.Version,CrossState.Road2ToRoad1)).Success);
-        var result=Move(map,Select(map),-10,50);Assert.IsTrue(result.Success,result.Message);var cross=result.Data!.Crosses.Single();
-        Assert.AreEqual(new CrossPosition(81,201),cross.Key.Position);Assert.AreEqual(CrossState.Road2ToRoad1,cross.State);
+        var map=new TestMap();map.Add(20,20,81,81);map.Add(20,81,81,20);map.Calculate();
+        Assert.AreEqual(0,map.Crosses.GetAll().Data!.Length);
+        var result=Move(map,Select(map),-10,50);Assert.IsTrue(result.Success,result.Message);
+        Assert.AreEqual(0,result.Data!.Crosses.Length);map.Calculate();Assert.AreEqual(0,map.Crosses.GetAll().Data!.Length);
         foreach(var road in result.Data.Lines){Assert.AreEqual(2,road.Nodes.Length);Assert.AreEqual(61,Math.Abs(road.Nodes[1].X-road.Nodes[0].X));Assert.AreEqual(61,Math.Abs(road.Nodes[1].Y-road.Nodes[0].Y));}
     }
 
@@ -207,7 +206,7 @@ public sealed class MapAreaMoveTests
         var obsolete=pair.Cross.Key with{Position=new(60,60)};
         map.Repository.Transaction(s=>{s.Crosses.Add(obsolete,pair.Cross with{Key=obsolete});return true;});
         var expected=map.Repository.Transaction(s=>(Stale:s.StaleCrosses.ToHashSet(),Dirty:s.DirtyLines.ToHashSet(),Pending:s.PendingSegments.ToHashSet(),Cross:s.Crosses.Values.Single(c=>c.Key.Contains(external.Code))));
-        var result=Move(map,Select(map));Assert.IsTrue(result.Success,result.Message);Assert.AreEqual(2,result.Data!.Crosses.Length);
+        var result=Move(map,Select(map));Assert.IsTrue(result.Success,result.Message);Assert.AreEqual(1,result.Data!.Crosses.Length);
         map.Repository.Transaction(s=>{Assert.IsTrue(s.StaleCrosses.SetEquals(expected.Stale));Assert.IsTrue(s.DirtyLines.SetEquals(expected.Dirty));Assert.IsTrue(s.PendingSegments.SetEquals(expected.Pending));Assert.AreEqual(expected.Cross,s.Crosses[expected.Cross.Key]);Assert.IsFalse(s.Crosses.ContainsKey(obsolete));return true;});
     }
 }

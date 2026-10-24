@@ -8,7 +8,7 @@
   <StackPanel Margin="0,0,0,14">
    <TextBlock Text="导入 ChatGPT 给我的流程图" FontSize="24" FontWeight="SemiBold" Foreground="#172B4D"/>
    <TextBlock Text="粘贴 ArgumentMap Flow v1 JSON → 选择插入点 → 校验预览 → 确认导入" Foreground="#667085" Margin="0,6,0,0" TextWrapping="Wrap"/>
-   <TextBlock x:Name="LogicRequirementHint" Text="LN6、LN12、LN18 的 logic 必填且非空白，最多 255 字符。LN4：值只能为 True／False，logic 可为空；非空时 True 对应 P、False 对应 ¬P，P 必须对应唯一 LN6 的完整逻辑语言。LN8：值只能为 =／→／↔／⊇／⊋／⊆／⊊，logic 必须与 value 完全一致；漏填或空串自动补齐，明确不一致则拒绝；连接类型按绘图约定，自由放置。LN10：value 必须含英文字母，小写且可重复，需对应含英文字母的大写值 LN12；logic 自动生成 value ∈ 大写值（可省略或空串），明确不一致拒绝。所有 logic 均不允许 null。" Foreground="#9A5700" Margin="0,6,0,0" TextWrapping="Wrap"/>
+   <TextBlock x:Name="LogicRequirementHint" Text="LN6、LN12、LN18 的 logic 必填且非空白，最多 255 字符。LN4：值只能为 True／False，logic 可为空；非空时 True 对应 P、False 对应 ¬P，P 必须对应唯一 LN6 的完整逻辑语言。LN8：值只能为 =／→／↔／¬／⊇／⊋／⊆／⊊，logic 自动生成：¬ 对应 ¬(?)，其他符号同值；漏填或空串自动补齐，旧 ¬ 自动规范，其他不一致则拒绝；¬ 表示一元非（NOT），输入 P、输出 Q 表达 Q ↔ ¬P；连接类型按绘图约定，自由放置，不计算真假。LN10：value 必须含英文字母，小写且可重复，需对应含英文字母的大写值 LN12；logic 自动生成 value ∈ 大写值（可省略或空串），明确不一致拒绝。所有 logic 均不允许 null。" Foreground="#9A5700" Margin="0,6,0,0" TextWrapping="Wrap"/>
    <TextBlock x:Name="UniquenessRequirementHint" Text="LN12：value 转大写后全图唯一，logic 可重复。LN6：logic 区分大小写、全图唯一，value 可重复。导入按新增处理，仅 LN12 的重复 value、LN6 的重复 logic 自动加数字；同批 LN4 引用跟随 LN6 更新。LN10 的 value、logic 可重复，隶属按 LN12 的 value 校验；同批父节点编号时实例同步。LN4、LN8 的固定值可重复；LN8 全图数量不限。预览不预占，以提交结果为准。" Foreground="#667085" Margin="0,6,0,0" FontSize="12" TextWrapping="Wrap"/>
    <TextBlock x:Name="ImportDefaultsHint" Text="所有 LN 的 value、logic 只能为单行，不能包含换行；info 说明允许换行。道路默认速度 100；路口优先双向连通或不连通，尽量避免单向换路。" Foreground="#667085" Margin="0,6,0,0" FontSize="12" TextWrapping="Wrap"/>
   </StackPanel>
@@ -33,7 +33,7 @@
      <TextBlock Text="Y" VerticalAlignment="Center" Margin="0,0,8,0"/><TextBox x:Name="YInput" Width="130" Padding="7,5" Margin="0,0,16,0" TextChanged="Input_Changed"/>
      <Button x:Name="PickButton" Content="在地图上选择插入点" Padding="10,5" Click="Pick_Click"/>
     </WrapPanel>
-    <TextBlock Text="X、Y 必须是整数＋0.5。线路点保持整数；地图选点自动吸附。相对布局整体平移，所有现有规则仍须满足。" TextWrapping="Wrap" FontSize="12" Foreground="#667085" Margin="0,8,0,0"/>
+    <TextBlock Text="插入点 X、Y 必须是整数＋0.5，地图选点自动吸附。线路点和 Cross 的 at 均为整数；半整数相交不创建 Cross、不取整。相对布局按整数偏移整体平移。" TextWrapping="Wrap" FontSize="12" Foreground="#667085" Margin="0,8,0,0"/>
    </StackPanel>
   </Border>
   <ScrollViewer Grid.Row="3" MaxHeight="100" VerticalScrollBarVisibility="Auto" Margin="0,12,0,0">

@@ -5,14 +5,14 @@ namespace ArgumentMap.Tests;
 [TestClass, TestCategory("MySql")]
 public sealed class MySqlIntegrationTests
 {
-    [TestMethod("Cross 单向状态 2/3、约束迁移、HTTP 双用户竞争、SQL 回滚、半整数及重算反转保留")]
+    [TestMethod("Cross 单向状态 2/3、约束迁移、HTTP 双用户竞争、SQL 回滚、忽略半整数及重算反转保留")]
     public Task OneWayCrossDirections() => MySqlChecks.RunAsync("CrossDirections");
-    [TestMethod("数字编码完整迁移、Road1 排序、两侧字段跟随、半整数及断点恢复")]
+    [TestMethod("数字编码完整迁移、Road1 排序、两侧字段跟随、半整数退役及断点恢复")]
     public Task NumericCodesMigration() => MySqlChecks.RunAsync("Codes");
 
     [TestMethod("编码迁移写入失败不改原表，修复后重试保留通行设置")]
     public Task NumericCodesMigrationRollback() => MySqlChecks.RunAsync("CodesRollback");
-    [TestMethod("MySQL 保存、中文、半整数交点和重启持久化")]
+    [TestMethod("MySQL 保存、中文、整数交点和重启持久化")]
     public Task StorageAndUnicode() => MySqlChecks.RunAsync("Storage");
 
     [TestMethod("真实 MySQL 的 F6、K、HTTP 服务重启与删除")]

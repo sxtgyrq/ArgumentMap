@@ -2,12 +2,13 @@ namespace ArgumentMap.Contracts;
 
 public enum CrossState { Disconnected = -1, Unset = 0, Connected = 1, Road1ToRoad2 = 2, Road2ToRoad1 = 3 }
 
-// Eight-direction integer-node segments can intersect on integers or half-integers.
-// Doubled coordinates represent both exactly, without floating-point identity comparisons.
+// Keep doubled coordinates for wire compatibility and exact general geometry.
+// A persisted Cross must be an integer grid point; half-integer geometric crossings are not roads' junctions.
 public readonly record struct CrossPosition(int X2, int Y2)
 {
     public double X => X2 / 2.0;
     public double Y => Y2 / 2.0;
+    public bool IsInteger => X2 % 2 == 0 && Y2 % 2 == 0;
 }
 
 // Segment orders are mutable location fields, not the identity of a crossing.
@@ -17,7 +18,7 @@ public readonly record struct CrossKey(string RoadCode1, string RoadCode2, Cross
     public static CrossKey Create(string first, string second, CrossPosition position) =>
         string.CompareOrdinal(first, second) > 0 ? new(first, second, position) : new(second, first, position);
     public bool IsValid => LineCode.IsValid(RoadCode1) && LineCode.IsValid(RoadCode2) &&
-        string.CompareOrdinal(RoadCode1, RoadCode2) > 0 && Position.X2 is >= 0 and <= 1000000 && Position.Y2 is >= 0 and <= 1000000;
+        string.CompareOrdinal(RoadCode1, RoadCode2) > 0 && Position.IsInteger && Position.X2 is >= 0 and <= 1000000 && Position.Y2 is >= 0 and <= 1000000;
     public bool Contains(string code) => RoadCode1 == code || RoadCode2 == code;
     public int CompareTo(CrossKey other)
     {

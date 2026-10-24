@@ -52,7 +52,8 @@ internal static class DirectionMySqlChecks
         CollectionAssert.AreEqual(reversed.Nodes, new LineSaveService(reopened).GetDetail(new(a.Code, a.Owner)).Data!.Nodes);
         Assert.IsTrue(reopened.Transaction(s => s.PendingSegments.Count == 3 && s.StaleCrosses.Count == 2 && s.DirtyLines.Contains(a.Code)),
             "Interrupted reversal preserves all pending Cross work across MySQL repository restart.");
-        Assert.AreEqual(node, new CrossService(reopened).GetAll().Data!.Single(cross => cross.Key == node.Key));
+        Assert.AreEqual(node, reopened.Transaction(s => s.Crosses[node.Key]));
+        Assert.AreEqual(0, new CrossService(reopened).GetAll().Data!.Length, "Pending Crosses survive in storage but stay hidden until K restores them.");
         await Calculate(client);
         var reloaded = new CrossService(new MySqlLineRepository(settings)).GetAll().Data!;
         var shiftedNode = reloaded.Single(cross => cross.Key == node.Key); var shiftedInterior = reloaded.Single(cross => cross.Key == interior.Key);

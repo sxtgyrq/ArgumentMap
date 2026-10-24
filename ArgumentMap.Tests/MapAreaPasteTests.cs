@@ -15,7 +15,7 @@ public sealed class MapAreaPasteTests
         var a=LogicalNodeMySqlTests.Add(repository,20,50,240,50);LogicalNodeMySqlTests.Add(repository,110,20,110,80);
         var roadService=new LineSaveService(repository);Assert.IsTrue(roadService.SaveProperties(new(a.Code,"owner",a.Version,new(){RoadName="副本线路",RoadDetail="说明\n保留",Speed=237,PassInOpposeDirection=1})).Success);
         var nodes=new LogicalNodeService(repository);
-        foreach(var (x,size,value,logic) in new[]{(50.5m,12,"PEOPLE","CUSTOM"),(90.5m,10,"people",""),(130.5m,6,"判断","P"),(160.5m,4,"True","P"),(180.5m,4,"False","¬P"),(210.5m,8,"↔","↔")})
+        foreach(var (x,size,value,logic) in new[]{(50.5m,12,"PEOPLE","CUSTOM"),(90.5m,10,"people(id=1)",""),(130.5m,6,"判断","P"),(160.5m,4,"True","P"),(180.5m,4,"False","¬P"),(210.5m,8,"↔","↔")})
         {
             var result=nodes.Create(new("owner",x,50.5m,size,new(){Value=value,LogicLanguage=logic,Info="节点说明\n保留"}));Assert.IsTrue(result.Success,result.Message);
         }
@@ -52,7 +52,7 @@ public sealed class MapAreaPasteTests
                 Assert.IsTrue(copy.Positions.Length>0);
             }
             var parent=pasted.Added.LogicalNodes.Single(n=>n.SideLength==12);Assert.AreEqual("PEOPLE"+index,parent.Properties.Value);Assert.AreEqual("CUSTOM",parent.Properties.LogicLanguage);
-            var child=pasted.Added.LogicalNodes.Single(n=>n.SideLength==10);Assert.AreEqual("people"+index,child.Properties.Value);Assert.AreEqual($"people{index} ∈ PEOPLE{index}",child.Properties.LogicLanguage);
+            var child=pasted.Added.LogicalNodes.Single(n=>n.SideLength==10);Assert.AreEqual("people"+index+"(id=1)",child.Properties.Value);Assert.AreEqual($"people{index}(id=1)∈PEOPLE{index}∧1∈PEOPLE{index}.ID",child.Properties.LogicLanguage);
             Assert.AreEqual("P"+index,pasted.Added.LogicalNodes.Single(n=>n.SideLength==6).Properties.LogicLanguage);
             Assert.AreEqual("P"+index,pasted.Added.LogicalNodes.Single(n=>n.Properties.Value=="True").Properties.LogicLanguage);Assert.AreEqual("¬P"+index,pasted.Added.LogicalNodes.Single(n=>n.Properties.Value=="False").Properties.LogicLanguage);
             Assert.AreEqual("↔",pasted.Added.LogicalNodes.Single(n=>n.SideLength==8).Properties.LogicLanguage);
@@ -70,7 +70,7 @@ public sealed class MapAreaPasteTests
         var bounds=kind switch{"nodes"=>new MapAreaBounds(40,40,220,60),"roads"=>new(100,10,120,90),_=>new(80,40,98,60)};
         var source=Select(map.Repository,bounds);var result=new MapAreaPasteService(map.Repository).Paste(new("owner",source,500,500));Assert.IsTrue(result.Success,result.Message);
         Assert.AreEqual(source.Lines.Length,result.Data!.Added.Lines.Length);Assert.AreEqual(source.LogicalNodes.Length,result.Data.Added.LogicalNodes.Length);
-        if(kind=="externalReferences")Assert.AreEqual("people ∈ PEOPLE",result.Data.Added.LogicalNodes.Single().Properties.LogicLanguage);
+        if(kind=="externalReferences")Assert.AreEqual("people(id=1)∈PEOPLE∧1∈PEOPLE.ID",result.Data.Added.LogicalNodes.Single().Properties.LogicLanguage);
         if(kind=="nodes")Assert.AreEqual(0,result.Data.Added.Lines.Length);
         if(kind=="roads")Assert.AreEqual(0,result.Data.Added.LogicalNodes.Length);
     }

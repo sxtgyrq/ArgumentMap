@@ -21,7 +21,7 @@ internal static class LogicalNodeBatch
                 var parentValue=LogicalNodeInstanceRules.ParentValue(value);
                 var local=input.Where(l=>l.Size==12&&LogicalNodeValueUniqueness.Normalize(l.Value)==parentValue).ToArray();
                 if(local.Length>1)return Fail("AmbiguousInstanceParent",$"LN {n.Id}：本批有多个值为“{parentValue}”的 LN12，无法确定实例所属；请使用不同的 LN12 值。");
-                if(local.Length==1)value=LogicalNodeInstanceRules.Normalize(working.LogicalNodes[codes[local[0].Id]].Properties.Value);
+                if(local.Length==1)value=LogicalNodeInstanceRules.Reparent(value,working.LogicalNodes[codes[local[0].Id]].Properties.Value);
                 logic=LogicalNodeInstanceRules.Expression(value);
             }
             if(n.Size==4&&!string.IsNullOrWhiteSpace(logic))
@@ -39,7 +39,7 @@ internal static class LogicalNodeBatch
             if(create.Data.Properties.Value!=n.Value)notes.Add($"LN {n.Id}：值“{n.Value}”已按大写与唯一性规则保存为“{create.Data.Properties.Value}”。");
             if(create.Data.Properties.LogicLanguage!=n.Logic)
             {
-                var detail=n.Size==10?"已按所属 LN12 最终保存的值生成隶属表达式。":n.Size==6?"本批引用该 LN6 的 LN4 将同步使用新表达式；已有 LN4 保持原关联，其他边长节点的命题引用未自动改写，请核对。":
+                var detail=n.Size==8?"已按 LN8 的值自动生成逻辑语言。":n.Size==10?"已按所属 LN12 最终保存的值生成隶属表达式。":n.Size==6?"本批引用该 LN6 的 LN4 将同步使用新表达式；已有 LN4 保持原关联，其他边长节点的命题引用未自动改写，请核对。":
                     string.IsNullOrWhiteSpace(n.Logic)?"空白逻辑语言已规范为空字符串。":"已同步为本批对应 LN6 实际保存的表达式。";
                 notes.Add($"LN {n.Id}：逻辑语言“{n.Logic}”已保存为“{create.Data.Properties.LogicLanguage}”。{detail}");
             }

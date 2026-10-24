@@ -113,26 +113,25 @@ internal static class MySqlChecks
         Check(crosses.Edit(new(cross.Key, a.Owner, cross.Version, CrossState.Connected)).Success, "Cross setting written to MySQL");
         SaveNew(repository, (100, 100), (101, 101));
         SaveNew(repository, (100, 101), (101, 100));
-        var half = crosses.GetAll().Data!.Single(item => item.Key.Position.X == 100.5);
-        Check(crosses.Edit(new(half.Key, a.Owner, half.Version, CrossState.Disconnected)).Success, "Half-integer Cross setting persisted");
+        Check(!crosses.GetAll().Data!.Any(item => item.Key.Position.X == 100.5), "Half-integer geometric crossing does not create a Cross");
         var reopened = new MySqlLineRepository(settings);
         var reloaded = new LineSaveService(reopened).GetAll().Data!;
         Check(reloaded.Length == 4 && reloaded.All(line => line.Owner == "中文用户😀"), "Reopen retains Chinese and emoji owner text");
         var loadedCrosses = new CrossService(reopened).GetAll().Data!;
-        Check(loadedCrosses.Any(item => item.State == CrossState.Connected) && loadedCrosses.Any(item => item.State == CrossState.Disconnected && item.Key.Position.X == 100.5),
-            "Reopen retains both Cross states and exact half coordinate");
+        Check(loadedCrosses.Length == 1 && loadedCrosses.Single().State == CrossState.Connected,
+            "Reopen retains the integer Cross setting and ignores the half-integer crossing");
         using (var connection = new MySqlConnection(settings.ConnectionString()))
         {
             connection.Open();
             using var column = connection.CreateCommand();
-            column.CommandText = "SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=@db AND TABLE_NAME='Crosses' AND COLUMN_NAME IN ('X','Y') AND DATA_TYPE='decimal' AND NUMERIC_SCALE=1";
+            column.CommandText = "SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=@db AND TABLE_NAME='Crosses' AND COLUMN_NAME IN ('X','Y') AND DATA_TYPE='int'";
             column.Parameters.AddWithValue("@db", settings.Database);
-            Check(Convert.ToInt32(column.ExecuteScalar()) == 2, "Cross coordinate columns use decimal with one fractional digit");
+            Check(Convert.ToInt32(column.ExecuteScalar()) == 2, "Cross coordinate columns use actual INT storage");
             using var value = connection.CreateCommand();
             value.CommandText = "SELECT X,Y FROM Crosses WHERE RoadCode1=@first AND RoadCode2=@second AND X=@x AND Y=@y";
-            value.Parameters.AddWithValue("@first", half.Key.RoadCode1); value.Parameters.AddWithValue("@second", half.Key.RoadCode2); value.Parameters.AddWithValue("@x", half.Key.Position.X); value.Parameters.AddWithValue("@y", half.Key.Position.Y);
+            value.Parameters.AddWithValue("@first", cross.Key.RoadCode1); value.Parameters.AddWithValue("@second", cross.Key.RoadCode2); value.Parameters.AddWithValue("@x", cross.Key.Position.X); value.Parameters.AddWithValue("@y", cross.Key.Position.Y);
             using var reader = value.ExecuteReader();
-            Check(reader.Read() && reader.GetDecimal(0) == 100.5m && reader.GetDecimal(1) == 100.5m, "Database saves actual half coordinates rather than doubled values");
+            Check(reader.Read() && reader.GetInt32(0) == 5 && reader.GetInt32(1) == 0, "Database saves actual integer coordinates rather than doubled transport values");
         }
 
         var invalid = service.Create(new(a.Owner)).Data!;

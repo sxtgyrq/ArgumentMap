@@ -16,12 +16,16 @@ internal static class MapAreaClipboard
         var data=selection with{LogicalNodes=selection.LogicalNodes.Select(n=>n with{Positions=[],CanEdit=null}).ToArray()};
         return JsonSerializer.Serialize(new Envelope(Format,data),Options);
     }
-    internal static MapAreaSelection? Decode(string? text)
+    internal static MapAreaSelection? Decode(string? text)=>Decode(text,out _);
+    internal static MapAreaSelection? Decode(string? text,out bool isAreaClipboard)
     {
+        isAreaClipboard=false;
         if(string.IsNullOrWhiteSpace(text)||text.Length>MapAreaCopyRules.MaximumTextLength)return null;
         try
         {
             using var document=JsonDocument.Parse(text,new(){MaxDepth=32});
+            isAreaClipboard=document.RootElement.ValueKind==JsonValueKind.Object&&document.RootElement.TryGetProperty("format",out var format)&&
+                format.ValueKind==JsonValueKind.String&&format.GetString()!.StartsWith("argumentmap.area/",StringComparison.Ordinal);
             if(HasDuplicates(document.RootElement))return null;
             var data=document.RootElement.Deserialize<Envelope>(Options);
             return data?.Format==Format&&MapAreaCopyRules.Valid(data.Selection)?data.Selection:null;

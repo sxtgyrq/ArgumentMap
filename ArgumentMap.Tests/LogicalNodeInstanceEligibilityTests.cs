@@ -39,14 +39,14 @@ public sealed class LogicalNodeInstanceEligibilityTests
     [TestMethod]
     public void EnglishChineseRenameStillSynchronizesInstances_AndAssignmentToChineseParentFails()
     {
-        var map=new TestMap();var parent=LogicalNodeInstanceTests.Parent(map.Repository,"H人");var child=LogicalNodeInstanceTests.Child(map.Repository,"h人");
+        var map=new TestMap();var parent=LogicalNodeInstanceTests.Parent(map.Repository,"H人");var child=LogicalNodeInstanceTests.Child(map.Repository,"h人(id=1)");
         var chinese=LogicalNodeInstanceTests.Parent(map.Repository,"人",200.5m);var service=new LogicalNodeService(map.Repository);
         var before=map.Snapshot();var rejected=service.Update(new(child.Code,"owner",child.Version,"人","",LogicLanguage:""));
         Assert.AreEqual("InvalidInstanceValue",rejected.Code,rejected.Message);Assert.AreEqual(before,map.Snapshot());
         Assert.AreEqual("InvalidInstanceValue",service.Create(new("owner",250.5m,50.5m,10,new(){Value="人"})).Code);Assert.AreEqual(before,map.Snapshot());
         var renamed=service.Update(new(parent.Code,"owner",parent.Version,"M人","",LogicLanguage:parent.Properties.LogicLanguage));
         Assert.IsTrue(renamed.Success,renamed.Message);var current=service.GetAll().Data!.Single(n=>n.Code==child.Code);
-        Assert.AreEqual("m人",current.Properties.Value);Assert.AreEqual("m人 ∈ M人",current.Properties.LogicLanguage);
+        Assert.AreEqual("m人(id=1)",current.Properties.Value);Assert.AreEqual("m人(id=1)∈M人∧1∈M人.ID",current.Properties.LogicLanguage);
         Assert.AreEqual(chinese.Properties,service.GetAll().Data!.Single(n=>n.Code==chinese.Code).Properties);
     }
 

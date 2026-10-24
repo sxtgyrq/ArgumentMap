@@ -13,16 +13,17 @@ namespace ArgumentMap.Tests;
 [TestClass,TestCategory("Unit")]
 public sealed class LogicalNodeRelationLogicTests
 {
-    [TestMethod,DataRow("="),DataRow("→"),DataRow("⊇"),DataRow("⊋"),DataRow("⊆"),DataRow("⊊"),DataRow("↔")]
+    [TestMethod,DataRow("="),DataRow("→"),DataRow("⊇"),DataRow("⊋"),DataRow("⊆"),DataRow("⊊"),DataRow("↔"),DataRow("¬")]
     public void ServerAlwaysDerivesLogicFromSelectedValue_IncludingOldClientsWithoutLogic(string value)
     {
         var map=new TestMap();var node=LogicalNodeRelationTests.Add(map.Repository,value:value,logic:"old custom logic");
-        Assert.AreEqual(value,node.Properties.LogicLanguage);
+        var expected=value=="¬"?"¬(?)":value;
+        Assert.AreEqual(expected,node.Properties.LogicLanguage);
         var service=new LogicalNodeService(map.Repository);var opposite=value=="="?"→":"=";
         var changed=service.Update(new(node.Code,"owner",node.Version,opposite,"preserved info"));
         Assert.IsTrue(changed.Success,changed.Message);Assert.AreEqual(opposite,changed.Data!.Properties.LogicLanguage);
         var again=service.Update(new(node.Code,"owner",changed.Data.Version,value,"preserved info",LogicLanguage:"outdated expression"));
-        Assert.IsTrue(again.Success,again.Message);Assert.AreEqual(value,again.Data!.Properties.LogicLanguage);Assert.AreEqual("preserved info",again.Data.Properties.Info);
+        Assert.IsTrue(again.Success,again.Message);Assert.AreEqual(expected,again.Data!.Properties.LogicLanguage);Assert.AreEqual("preserved info",again.Data.Properties.Info);
     }
 
     [TestMethod,DataRow(""),DataRow("P"),DataRow("→"),DataRow(" = "),DataRow("= ")]
@@ -38,27 +39,28 @@ public sealed class LogicalNodeRelationLogicTests
         Assert.AreEqual(before,map.Snapshot());
     }
 
-    [TestMethod,DataRow("="),DataRow("→"),DataRow("⊇"),DataRow("⊋"),DataRow("⊆"),DataRow("⊊"),DataRow("↔")]
+    [TestMethod,DataRow("="),DataRow("→"),DataRow("⊇"),DataRow("⊋"),DataRow("⊆"),DataRow("⊊"),DataRow("↔"),DataRow("¬")]
     public void ImportFillsMissingOrEmptyLogic_ButRejectsAnExplicitMismatchBeforeAnyWrite(string value)
     {
         var document=LogicalNodeRulesAuditTests.MixedDocument();document["ln"]![5]!["value"]=value;
         var map=new TestMap();var service=new FlowDiagramService(map.Repository);
-        foreach(var logic in new[]{"","P",value=="="?"→":"="," ",value})
+        var expected=value=="¬"?"¬(?)":value;
+        foreach(var logic in new[]{"","P",value=="="?"→":"="," ",value,expected,"¬(P)"}.Distinct())
         {
             document["ln"]![5]!["logic"]=logic;var before=map.Snapshot();
             var request=new FlowDiagramRequest("owner",document.ToJsonString(),500.5m,500.5m);
-            var preview=service.Preview(request);Assert.AreEqual(logic==""||logic==value,preview.Success,logic+": "+preview.Message);
+            var preview=service.Preview(request);Assert.AreEqual(logic==""||logic==value||logic==expected,preview.Success,logic+": "+preview.Message);
             Assert.AreEqual(before,map.Snapshot());
             if(preview.Success)
-            {Assert.AreEqual(value,FlowDiagramLnAuditTests.Node(preview.Data!,"Equal").Properties.LogicLanguage);}
+            {Assert.AreEqual(expected,FlowDiagramLnAuditTests.Node(preview.Data!,"Equal").Properties.LogicLanguage);}
             else
             {StringAssert.Contains(preview.Message,"Equal");Assert.IsFalse(service.Import(request).Success);Assert.AreEqual(before,map.Snapshot());}
         }
         document["ln"]![5]!.AsObject().Remove("logic");
         var parsed=FlowDiagramLanguage.Parse(document.ToJsonString());Assert.IsTrue(parsed.Success,parsed.Message);
-        Assert.AreEqual(value,parsed.Data!.Ln.Single(n=>n.Id=="Equal").Logic);
+        Assert.AreEqual(expected,parsed.Data!.Ln.Single(n=>n.Id=="Equal").Logic);
         var imported=service.Import(new("owner",document.ToJsonString(),500.5m,500.5m));Assert.IsTrue(imported.Success,imported.Message);
-        Assert.IsTrue(imported.Data!.Added.LogicalNodes.Where(n=>n.SideLength==8).All(n=>n.Properties.Value==n.Properties.LogicLanguage));
+        Assert.IsTrue(imported.Data!.Added.LogicalNodes.Where(n=>n.SideLength==8).All(n=>LogicalNodeRelationRules.Expression(n.Properties.Value)==n.Properties.LogicLanguage));
     }
 }
 

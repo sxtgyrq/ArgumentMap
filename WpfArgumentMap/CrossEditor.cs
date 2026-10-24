@@ -91,14 +91,16 @@ internal sealed class CrossEditor
             Message = result.Message;
             if (!result.Success || result.Data is null) return false;
             crosses.Clear();
-            crosses.AddRange(result.Data);
+            crosses.AddRange(result.Data.Where(c=>c is not null&&c.Key.IsValid));
+            if(crosses.Count!=result.Data.Length)Message="已排除无效或非整数 Cross，请更新 Server 后刷新地图。";
             if (Selected is null) SelectedKey = null;
             return true;
         }
         finally { IsBusy = false; }
     }
     internal void ReplaceCrosses(CrossSnapshot[] values)
-    {contentRevision++;crosses.Clear();crosses.AddRange(values);SelectedKey=null;}
+    {contentRevision++;crosses.Clear();crosses.AddRange(values.Where(c=>c is not null&&c.Key.IsValid));SelectedKey=null;
+        if(crosses.Count!=values.Length)Message="已排除无效或非整数 Cross，请更新 Server 后刷新地图。";}
 
     internal async Task<bool> CalculateAsync(Action progress,Func<bool>? foregroundBusy=null)
     {
@@ -133,7 +135,8 @@ internal sealed class CrossEditor
             // while this read was in flight. Never replace them with an older read.
             if(revision==contentRevision&&!IsBusy)
             {
-                contentRevision++;crosses.Clear();crosses.AddRange(loaded.Data);
+                contentRevision++;crosses.Clear();crosses.AddRange(loaded.Data.Where(c=>c is not null&&c.Key.IsValid));
+                if(crosses.Count!=loaded.Data.Length)CalculationMessage="K 刷新排除了无效或非整数 Cross，请更新 Server 后刷新地图。";
                 if (Selected is null) SelectedKey = null;
             }
             return true;
@@ -164,6 +167,7 @@ internal sealed class CrossEditor
             var result = await client.SetCrossStateAsync(selected.Key, selected.Version, state);
             Message = result.Message;
             if (!result.Success || result.Data is null) return false;
+            if(!result.Data.Key.IsValid){Message="服务端返回了无效或非整数 Cross，请更新 Server 后刷新确认保存结果。";return false;}
             var index = crosses.FindIndex(cross => cross.Key == selected.Key);
             crosses[index] = result.Data;
             // Shift still commits through HTTP, as in the old project; only the full reload is skipped.
@@ -172,7 +176,8 @@ internal sealed class CrossEditor
                 var refreshed = await client.GetCrossesAsync();
                 if (refreshed.Success && refreshed.Data is not null)
                 {
-                    crosses.Clear(); crosses.AddRange(refreshed.Data);
+                    crosses.Clear(); crosses.AddRange(refreshed.Data.Where(c=>c is not null&&c.Key.IsValid));
+                    if(crosses.Count!=refreshed.Data.Length)Message="状态已保存，刷新排除了无效或非整数 Cross；请更新 Server 后刷新地图。";
                     if (Selected is null) SelectedKey = null;
                 }
                 else Message = result.Message + " 状态已保存，但刷新交点失败，请按 F3 重试。";

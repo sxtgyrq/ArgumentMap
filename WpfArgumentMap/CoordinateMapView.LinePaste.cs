@@ -21,7 +21,13 @@ public sealed partial class CoordinateMapView
         if(!LineClipboard.Valid(copy)){ClipboardNotice("线路副本超出支持的格式，请刷新后重试。");return false;}
         text=LineClipboard.Encode(copy);return true;
     }
-    internal bool BeginPasteSelection(string? text)=>MapAreaClipboard.Decode(text) is {} area?BeginPasteArea(area):LineClipboard.Decode(text) is {} copy?BeginPasteLine(copy):BeginPasteLogicalNode(text);
+    internal bool BeginPasteSelection(string? text)
+    {
+        if(MapAreaClipboard.Decode(text,out var isAreaClipboard) is {} area)return BeginPasteArea(area);
+        if(isAreaClipboard)
+        {ClipboardNotice("框选副本无效或已过期；Cross 必须为整数坐标，请刷新地图后重新框选复制。");return false;}
+        return LineClipboard.Decode(text) is {} copy?BeginPasteLine(copy):BeginPasteLogicalNode(text);
+    }
     internal bool BeginPasteLine(LineCopyData copy)
     {
         if(!CanUseClipboard()||!LineClipboard.Valid(copy))return false;

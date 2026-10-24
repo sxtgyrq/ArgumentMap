@@ -12,7 +12,7 @@ public sealed partial class MySqlLineRepository
         using var check=connection.CreateCommand();
         check.CommandText="SELECT COUNT(*) FROM information_schema.TABLE_CONSTRAINTS WHERE CONSTRAINT_SCHEMA=@db AND TABLE_NAME='LogicalNodes' AND CONSTRAINT_NAME IN ('CK_LN_InstanceValue','CK_LN_InstanceLogic') AND CONSTRAINT_TYPE='CHECK' AND ENFORCED='YES'";
         check.Parameters.AddWithValue("@db",DatabaseName);var ready=Convert.ToInt32(check.ExecuteScalar())==2;
-        if(current is 27 or 28 or 29 or 30 or 31){if(!ready)throw new InvalidOperationException("缺少 LN10 小写值或隶属表达式约束，数据库架构不完整。");return;}
+        if(current is 27 or 28 or 29 or 30 or 31 or 32 or 33 or 34 or 35 or 36 or 37 or 38){if(!ready)throw new InvalidOperationException("缺少 LN10 小写值或隶属表达式约束，数据库架构不完整。");return;}
         if(current is not(26 or LogicalNodeInstancesPending))throw new InvalidOperationException("LN10 架构版本不兼容。");
         BackupLogicalNodeMigration(connection);
         MigrationExecute(connection,"UPDATE MapMetadata SET SchemaVersion=2601 WHERE Id=1 AND SchemaVersion=26");

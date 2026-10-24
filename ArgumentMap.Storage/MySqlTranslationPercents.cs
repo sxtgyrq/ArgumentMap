@@ -35,7 +35,7 @@ public sealed partial class MySqlLineRepository
             using var command=Command(connection,transaction,"SELECT RoadCode1,RoadCode2,X,Y,Percent1,Percent2 FROM Crosses");
             using var reader=command.ExecuteReader();while(reader.Read())
             {
-                var oldKey=new CrossKey(reader.GetString(0),reader.GetString(1),new((int)(reader.GetDecimal(2)*2),(int)(reader.GetDecimal(3)*2)));
+                var oldKey=new CrossKey(reader.GetString(0),reader.GetString(1),new(checked(reader.GetInt32(2)*2),checked(reader.GetInt32(3)*2)));
                 if(keys.TryGetValue(oldKey,out var key))crosses.Add(key,(reader.GetDecimal(4),reader.GetDecimal(5)));
             }
         }

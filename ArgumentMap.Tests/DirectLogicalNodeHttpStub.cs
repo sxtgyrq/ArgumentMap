@@ -68,6 +68,11 @@ internal sealed class DirectLogicalNodeHttpStub : HttpMessageHandler
             return new(HttpStatusCode.OK){Content=JsonContent.Create(AreaMoveGate is {} gate?await gate.Task.WaitAsync(token):new MapAreaMoveService(Repository).Move(area))};
         }
         if(request.RequestUri!.AbsolutePath=="/GetAllLineData")return new(HttpStatusCode.OK){Content=JsonContent.Create(new LineSaveService(Repository).GetAll())};
+        if(request.RequestUri.AbsolutePath=="/RemoveLine")
+        {
+            var deletion=(await request.Content!.ReadFromJsonAsync<DeleteLineRequest>(cancellationToken:token))!;
+            return new(HttpStatusCode.OK){Content=JsonContent.Create(new LineSaveService(Repository).Delete(deletion))};
+        }
         if(request.RequestUri.AbsolutePath=="/GetAllCrossData")return new(HttpStatusCode.OK){Content=JsonContent.Create(new CrossService(Repository).GetAll())};
         if(request.RequestUri!.AbsolutePath is "/AddLogicalNode" or "/AddLogicalNodeWithOperandKind")
         {

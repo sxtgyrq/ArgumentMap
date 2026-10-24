@@ -30,7 +30,7 @@ public sealed class LogicalNodeSizeWindow : Window
         instancePanel.Children.Add(confirm);
         foreach (var size in new[] { 4, 6, 8, 10, 12, 18 })
         {
-            var button = new Button { Name = $"Size{size}Button", Content = size == 18 ? "18 · 开始（全图唯一）" : size == 8 ? "8 · 等同／蕴含／等价／集合关系" : size==10?"10 · 实例（先选择所属 LN12）":size.ToString(),
+            var button = new Button { Name = $"Size{size}Button", Content = size == 18 ? "18 · 开始（全图唯一）" : size == 8 ? "8 · 等同／蕴含／等价／非／集合关系" : size==10?"10 · 实例（先选择所属 LN12）":size.ToString(),
                 Margin = new Thickness(0,12,0,0), Padding = new Thickness(12,10,12,10), IsEnabled = size != 18 || !hasStart };
             if (!button.IsEnabled) button.ToolTip = "已有开始节点，请先删除后重新放置。";
             RegisterName(button.Name,button);
@@ -38,7 +38,7 @@ public sealed class LogicalNodeSizeWindow : Window
             panel.Children.Add(button);
         }
         panel.Children.Add(instancePanel);
-        panel.Children.Add(new TextBlock { Text = hasStart ? "已有开始节点；4、6、8、10 和 12 仍可新增。" : "4 表示是／否；8 表示等同／蕴含／等价／集合关系；10 表示实例，先选所属 LN12；18 代表开始。中心自动吸附为整数＋0.5。",
+        panel.Children.Add(new TextBlock { Text = hasStart ? "已有开始节点；4、6、8、10 和 12 仍可新增。" : "4 表示是／否；8 表示等同／蕴含／等价／非／集合关系；10 表示实例，先选所属 LN12；18 代表开始。中心自动吸附为整数＋0.5。",
             TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0,16,0,0) });
         PreviewKeyDown += (_,e) => { if (e.Key == Key.Escape) { Close(); e.Handled = true; } };
         Content = panel;

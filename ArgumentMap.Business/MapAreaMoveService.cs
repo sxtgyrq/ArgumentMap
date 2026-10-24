@@ -168,6 +168,6 @@ public sealed class MapAreaMoveService(ILineRepository repository)
     private static MapAreaSnapshot Snapshot(LineStoreState state,string owner)=>new(
         state.Lines.Values.Where(l=>l.Nodes.Length>=2).OrderBy(l=>l.Code).Select(l=>l with{Nodes=l.Nodes.ToArray()}).ToArray(),
         state.LogicalNodes.Values.OrderBy(n=>n.Code).Select(n=>LogicalNodePositions.Snapshot(state,n) with{CanEdit=LogicalNodeService.CanEdit(state,n,owner)}).ToArray(),
-        state.Crosses.Values.OrderBy(c=>c.Key).ToArray());
+        CrossTopology.Visible(state));
     private static ServiceResult<MapAreaSnapshot> Fail(string code,string message)=>ServiceResult<MapAreaSnapshot>.Fail(code,message);
 }

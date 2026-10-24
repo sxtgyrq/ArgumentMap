@@ -21,16 +21,15 @@ public static class CrossPassageValidator
     public static CrossPassageViolation? FindForLine(LineSnapshot candidate, LineStoreState state)
     {
         var others = state.Lines.Values.Where(line => line.Code != candidate.Code && line.Nodes.Length >= 2).OrderBy(line => line.Code).ToArray();
-        foreach (var key in Intersections(others))
+        foreach (var key in new IntegerCrossIndex(others).Intersections)
             if (Violation(candidate, key, state) is { } violation) return violation;
         return null;
     }
 
     public static CrossPassageViolation? FindInCurrentGeometry(LineStoreState state)
     {
-        var lines = state.Lines.Values.Where(line => line.Nodes.Length >= 2).OrderBy(line => line.Code).ToArray();
         var firstPairAtPosition = new Dictionary<CrossPosition, CrossKey>();
-        foreach (var key in Intersections(lines))
+        foreach (var key in CrossGeometry.For(state).Intersections)
         {
             if (!firstPairAtPosition.TryGetValue(key.Position, out var first))
             {
@@ -48,6 +47,7 @@ public static class CrossPassageValidator
     {
         foreach (var cross in state.Crosses.Values.OrderBy(cross => cross.Key))
         {
+            if(!cross.Key.Position.IsInteger)continue;
             // During incremental K, obsolete records remain until cleanup for settings recovery.
             if (!state.Lines.TryGetValue(cross.Key.RoadCode1, out var first) || !state.Lines.TryGetValue(cross.Key.RoadCode2, out var second) ||
                 LineGeometry.FindPointOnLine(first.Nodes, cross.Key.Position) is null ||
@@ -65,17 +65,4 @@ public static class CrossPassageValidator
         return new(line.Code, key, state.Crosses.ContainsKey(key), location.NodeOrder, location.Segment);
     }
 
-    private static IEnumerable<CrossKey> Intersections(LineSnapshot[] lines)
-    {
-        for (var i = 0; i < lines.Length; i++)
-            for (var j = i + 1; j < lines.Length; j++)
-            {
-                var positions = new HashSet<CrossPosition>();
-                for (var a = 0; a < lines[i].Nodes.Length - 1; a++)
-                    for (var b = 0; b < lines[j].Nodes.Length - 1; b++)
-                        if (LineGeometry.TryIntersection(lines[i].Nodes[a], lines[i].Nodes[a + 1],
-                            lines[j].Nodes[b], lines[j].Nodes[b + 1], out var position) && positions.Add(position))
-                            yield return CrossKey.Create(lines[i].Code, lines[j].Code, position);
-            }
-    }
 }

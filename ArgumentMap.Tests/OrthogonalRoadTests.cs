@@ -80,10 +80,10 @@ public sealed class OrthogonalRoadTests
     }
 
     [TestMethod]
-    public void Save_OppositeDiagonalsAllowHalfIntegerCrossAndMaximumCoordinates()
+    public void Save_OppositeDiagonalsIgnoreHalfIntegerCrossAndKeepMaximumIntegerCoordinates()
     {
         var map = new TestMap(); map.Add(0, 0, 1, 1); map.Add(0, 1, 1, 0); map.Calculate();
-        Assert.AreEqual(new CrossPosition(1, 1), map.Crosses.GetAll().Data!.Single().Key.Position);
+        Assert.AreEqual(0, map.Crosses.GetAll().Data!.Length);
         var large = new TestMap(); large.Add(499980,499980,500000,500000); large.Add(499980,500000,500000,499980); large.Calculate();
         Assert.AreEqual(new CrossPosition(999980,999980), large.Crosses.GetAll().Data!.Single().Key.Position);
     }

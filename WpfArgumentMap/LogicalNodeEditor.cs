@@ -96,7 +96,7 @@ internal sealed class LogicalNodeEditor
         }
         finally { IsBusy = false; }
     }
-    internal async Task<bool> CreateAsync(decimal x,decimal y,int size,LogicalNodeProperties? properties=null)
+    internal async Task<bool> CreateAsync(decimal x,decimal y,int size,LogicalNodeProperties? properties=null,string? instanceParentCode=null)
     {
         if (IsBusy || Moving is not null) return false;
         if (client is null) { Message = "未连接服务，无法新增逻辑节点。"; return false; }
@@ -106,7 +106,10 @@ internal sealed class LogicalNodeEditor
         try
         {
             var value = size == 18 ? "开始" : size==4?LogicalNodeBranchRules.False:size==8?LogicalNodeRelationRules.Equality:"逻辑节点";
-            var result = await client.CreateLogicalNodeAsync(x,y,size,properties??new(){Value=value});
+            var result = instanceParentCode is not null ? client is ILogicalNodeInstanceCreationClient instanceClient ?
+                await instanceClient.CreateLogicalNodeInstanceAsync(x,y,instanceParentCode,properties??new()) :
+                ServiceResult<LogicalNodeSnapshot>.Fail("ClientUpgradeRequired","当前连接不支持实例属性，请更新 WPF 和 Server。") :
+                await client.CreateLogicalNodeAsync(x,y,size,properties??new(){Value=value});
             Message = result.Message;
             if (!result.Success || result.Data is null) return false;
             // Only show a committed server response, including its calculated positions.

@@ -45,7 +45,8 @@ public sealed class DirectionUnitTests
         var changed = reversed.Data!; Assert.AreEqual(a.Version + 1, changed.Version); Assert.AreEqual(a.Properties, changed.Properties);
         CollectionAssert.AreEqual(new[] { 130, 110, 100 }, changed.Nodes.Select(n => n.X).ToArray());
         CollectionAssert.AreEqual(new[] { 0, 1, 2 }, changed.Nodes.Select(n => n.Order).ToArray());
-        Assert.AreEqual(cross, map.Between(a, b));
+        Assert.AreEqual(cross, map.Repository.Transaction(s => s.Crosses[cross.Key]));
+        Assert.AreEqual(0, map.Crosses.GetAll().Data!.Length);
         Assert.IsTrue(map.Repository.Transaction(s => s.PendingSegments.Count(p => p.LineCode == a.Code) == 2 && s.StaleCrosses.Contains(cross.Key)));
         map.Calculate(); var newCross = map.Between(changed, b);
         Assert.AreEqual(cross.Key, newCross.Key); Assert.AreEqual(CrossState.Connected, newCross.State);

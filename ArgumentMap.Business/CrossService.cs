@@ -30,36 +30,45 @@ public sealed class CrossService(ILineRepository repository)
     }
 
     // As in the old K workflow, one transaction processes one changed segment.
-    public ServiceResult<CrossCalculationProgress> Calculate() => repository.Transaction(state =>
+    public ServiceResult<CrossCalculationProgress> Calculate() => CalculateCore(null);
+
+    // Atomic additions reuse the real K pipeline, scoped to their own changed road.
+    // They must never consume another user's queued segments or stale-cross cleanup.
+    // The caller validates the complete geometry before and after its isolated K/O pass;
+    // only normal interactive K needs to repeat whole-map guards between committed units.
+    internal ServiceResult<CrossCalculationProgress> CalculateForLine(string lineCode) => CalculateCore(lineCode);
+
+    private ServiceResult<CrossCalculationProgress> CalculateCore(string? lineCode) => repository.Transaction(state =>
     {
-        if (LogicalNodeRules.ValidateMap(state) is { } logicalNodeViolation)
+        if (lineCode is null && LogicalNodeRules.ValidateMap(state) is { } logicalNodeViolation)
             return ServiceResult<CrossCalculationProgress>.Fail(logicalNodeViolation.Code, logicalNodeViolation.Message);
         // Every request checks the current geometry under the existing shared database lock.
-        if (CrossPassageValidator.FindInCurrentGeometry(state) is { } before)
+        if (lineCode is null && CrossPassageValidator.FindInCurrentGeometry(state) is { } before)
             return PassageFailure(before, "计算前校验失败");
-        if (state.PendingSegments.Count > 0)
+        var pending=state.PendingSegments.Where(p=>lineCode is null||p.LineCode==lineCode).OrderBy(p=>p.LineCode).ThenBy(p=>p.Segment).ToArray();
+        if (pending.Length > 0)
         {
-            var segment = state.PendingSegments.OrderBy(item => item.LineCode).ThenBy(item => item.Segment).First();
+            var segment = pending[0];
             CrossTopology.CalculateSegment(state, segment.LineCode, segment.Segment);
             state.PendingSegments.Remove(segment);
-            if (LogicalNodeRules.ValidateMap(state) is { } afterLogicalNode)
+            if (lineCode is null && LogicalNodeRules.ValidateMap(state) is { } afterLogicalNode)
                 return ServiceResult<CrossCalculationProgress>.Fail(afterLogicalNode.Code, afterLogicalNode.Message);
-            if (CrossPassageValidator.FindThroughCalculatedCrosses(state) is { } afterSegment)
+            if (lineCode is null && CrossPassageValidator.FindThroughCalculatedCrosses(state) is { } afterSegment)
                 return PassageFailure(afterSegment, "线段计算后校验失败");
-            return ServiceResult<CrossCalculationProgress>.Ok(new(true, state.PendingSegments.Count, state.Crosses.Count),
+            return ServiceResult<CrossCalculationProgress>.Ok(new(true, lineCode is null?state.PendingSegments.Count:pending.Length-1, state.Crosses.Count),
                 $"已计算线 {segment.LineCode} 第 {segment.Segment + 1} 段，剩余 {state.PendingSegments.Count} 段。");
         }
-        CrossTopology.Cleanup(state);
-        state.DirtyLines.Clear();
-        if (LogicalNodeRules.ValidateMap(state) is { } afterLogicalNodeCleanup)
+        CrossTopology.Cleanup(state,lineCode is null?null:new HashSet<string>(StringComparer.Ordinal){lineCode});
+        if(lineCode is null)state.DirtyLines.Clear();else state.DirtyLines.Remove(lineCode);
+        if (lineCode is null && LogicalNodeRules.ValidateMap(state) is { } afterLogicalNodeCleanup)
             return ServiceResult<CrossCalculationProgress>.Fail(afterLogicalNodeCleanup.Code, afterLogicalNodeCleanup.Message);
-        if (CrossPassageValidator.FindThroughCalculatedCrosses(state) is { } afterCleanup)
+        if (lineCode is null && CrossPassageValidator.FindThroughCalculatedCrosses(state) is { } afterCleanup)
             return PassageFailure(afterCleanup, "计算完成后校验失败");
         return ServiceResult<CrossCalculationProgress>.Ok(new(false, 0, state.Crosses.Count), $"交点计算完成，共 {state.Crosses.Count} 个交点关系。");
     });
 
     public ServiceResult<CrossSnapshot[]> GetAll() => repository.Transaction(state =>
-        ServiceResult<CrossSnapshot[]>.Ok(state.Crosses.Values.OrderBy(cross => cross.Key).ToArray(), "交点已刷新。"));
+        ServiceResult<CrossSnapshot[]>.Ok(CrossTopology.Visible(state), "交点已刷新。"));
 
     public ServiceResult<CrossSnapshot> Edit(EditCrossRequest request) => repository.Transaction(state =>
     {

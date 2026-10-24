@@ -18,7 +18,7 @@ public sealed partial class CoordinateMapView
     public bool BeginFlowDiagramImport()
     {
         if(IsSaving||IsFlowDiagramImportActive)return false;
-        if(IsPastingLine||IsPastingArea){PendingMapOperation();return false;}
+        if(IsConnectingNodes||IsPastingLine||IsPastingArea){PendingMapOperation();return false;}
         flowImportAction=true;
         if(editor.Mode is LineEditorMode.Ready or LineEditorMode.Drawing||IsMovingLogicalNode||IsAreaMoveMode)
         {flowImportMessage="请先保存或取消当前线路、LN 移动或框选移动，再导入流程图。";Refresh();return false;}
@@ -86,7 +86,7 @@ public sealed partial class CoordinateMapView
         }
         foreach(var cross in preview.Crosses)
         {
-            if(!crossEditor.IsVisible(cross.State))continue;
+            if(!cross.Key.IsValid||!crossEditor.IsVisible(cross.State))continue;
             var pen=cross.State switch{CrossState.Disconnected=>DisconnectedCrossPen,CrossState.Connected=>ConnectedCrossPen,CrossState.Road1ToRoad2=>Road1ExitCrossPen,CrossState.Road2ToRoad1=>Road2ExitCrossPen,_=>UnsetCrossPen};
             dc.DrawEllipse(Brushes.White,pen,ToScreen(new(cross.Key.Position.X,cross.Key.Position.Y)),5,5);
         }

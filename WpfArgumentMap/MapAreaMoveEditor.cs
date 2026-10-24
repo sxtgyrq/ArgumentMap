@@ -29,6 +29,8 @@ internal sealed class MapAreaMoveEditor
         {
             var result=await client.SelectMapAreaAsync(bounds);Message=result.Message;
             if(!result.Success||result.Data is null)return false;
+            if(result.Data.Crosses is null||result.Data.Crosses.Any(c=>c is null||!c.Key.IsValid))
+            {Message="服务端返回的框选包含无效或非整数 Cross，请更新 Server 后重新框选。";return false;}
             Selection=result.Data;return true;
         }
         finally{IsBusy=false;}

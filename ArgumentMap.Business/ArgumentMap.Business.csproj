@@ -9,4 +9,7 @@
     <ProjectReference Include="../ArgumentMap.Storage/ArgumentMap.Storage.csproj"/>
     <ProjectReference Include="../ArgumentMap.Rules/ArgumentMap.Rules.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="ArgumentMap.Tests" />
+  </ItemGroup>
 </Project>

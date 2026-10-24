@@ -13,8 +13,8 @@ public sealed partial class MySqlLineRepository
         AddColumnIfMissing(connection, "DictLogin", "EditAllLogicalNodes", "BOOLEAN NOT NULL DEFAULT FALSE");
         using var version = connection.CreateCommand(); version.CommandText = "SELECT SchemaVersion FROM MapMetadata WHERE Id=1";
         var current = Convert.ToInt32(version.ExecuteScalar());
-        if ((current is 11 or 12 or 13 or 14 or 15 or 16 or 17 or 18 or 19 or 20 or 21 or 22 or 23 or 24 or 25 or 26 or 27 or 28 or 29 or 30 or 31) && hadPermission) return;
-        if (current is not (10 or 11 or 12 or 13 or 14 or 15 or 16 or 17 or 18 or 19 or 20 or 21 or 22 or 23 or 24 or 25 or 26 or 27 or 28 or 29 or 30 or 31)) throw new InvalidOperationException("数据库架构版本不兼容。");
+        if ((current is 11 or 12 or 13 or 14 or 15 or 16 or 17 or 18 or 19 or 20 or 21 or 22 or 23 or 24 or 25 or 26 or 27 or 28 or 29 or 30 or 31 or 32 or 33 or 34 or 35 or 36 or 37 or 38) && hadPermission) return;
+        if (current is not (10 or 11 or 12 or 13 or 14 or 15 or 16 or 17 or 18 or 19 or 20 or 21 or 22 or 23 or 24 or 25 or 26 or 27 or 28 or 29 or 30 or 31 or 32 or 33 or 34 or 35 or 36 or 37 or 38)) throw new InvalidOperationException("数据库架构版本不兼容。");
         if (current == 10) BackupLogicalNodeMigration(connection);
         // CREATE TABLE was already run from Schema.sql. After DDL, publish permissions and version atomically.
         using var transaction = connection.BeginTransaction();

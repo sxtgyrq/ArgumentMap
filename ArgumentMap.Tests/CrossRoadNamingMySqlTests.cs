@@ -25,7 +25,8 @@ public sealed class CrossRoadNamingMySqlTests
         foreach(var cross in crosses.GetAll().Data!)Assert.IsTrue(crosses.Edit(new(cross.Key,"owner",cross.Version,cross.Key.Contains(a.Code)?CrossState.Road1ToRoad2:CrossState.Road2ToRoad1)).Success);
         var node=new LogicalNodeService(repository).Create(new("owner",120.5m,110.5m,6,new(){Value="中文 LN"})).Data!;
         repository.Transaction(s=>{s.PendingSegments.Add((a.Code,0));s.DirtyLines.Add(a.Code);foreach(var key in s.Crosses.Keys)s.StaleCrosses.Add(key);return true;});
-        var before=Snapshot(repository);var originals=crosses.GetAll().Data!;
+        var before=Snapshot(repository);var originals=repository.Transaction(s=>s.Crosses.Values.OrderBy(c=>c.Key).ToArray());
+        Assert.AreEqual(0,crosses.GetAll().Data!.Length);
         RecreateV14(settings);Sql(settings,"UPDATE MapMetadata SET SchemaVersion=14 WHERE Id=1");
         if(interrupt)
         {
@@ -39,8 +40,9 @@ public sealed class CrossRoadNamingMySqlTests
         using var connection=new MySqlConnection(settings.ConnectionString());connection.Open();using var check=connection.CreateCommand();check.Parameters.AddWithValue("@db",settings.Database);
         check.CommandText="SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=@db AND TABLE_NAME='Crosses' AND COLUMN_NAME IN ('Line1Code','Line2Code','Segment1','Segment2','Line1Version','Line2Version')";Assert.AreEqual(0,Convert.ToInt32(check.ExecuteScalar()));
         check.CommandText="SELECT GROUP_CONCAT(COLUMN_NAME ORDER BY ORDINAL_POSITION) FROM information_schema.KEY_COLUMN_USAGE WHERE TABLE_SCHEMA=@db AND TABLE_NAME='Crosses' AND CONSTRAINT_NAME='PRIMARY'";Assert.AreEqual("RoadCode1,RoadCode2,X,Y",check.ExecuteScalar());
-        CollectionAssert.AreEqual(originals,new CrossService(new MySqlLineRepository(settings)).GetAll().Data!);CollectionAssert.AreEqual(node.Positions,new LogicalNodeService(repository).GetAll().Data!.Single().Positions);
-        foreach(var invalid in new[]{"RoadOrder1=-1","RoadVersion2=-1","Percent1=1.1","RoadCode1=RoadCode2","X=0.1"})
+        CollectionAssert.AreEqual(originals,new MySqlLineRepository(settings).Transaction(s=>s.Crosses.Values.OrderBy(c=>c.Key).ToArray()));
+        Assert.AreEqual(0,new CrossService(repository).GetAll().Data!.Length);CollectionAssert.AreEqual(node.Positions,new LogicalNodeService(repository).GetAll().Data!.Single().Positions);
+        foreach(var invalid in new[]{"RoadOrder1=-1","RoadVersion2=-1","Percent1=1.1","RoadCode1=RoadCode2","X=500001"})
             Assert.ThrowsExactly<MySqlException>(()=>Sql(settings,"UPDATE Crosses SET "+invalid));
         Assert.AreEqual(before,Snapshot(repository));
         Assert.IsTrue(new LineSaveService(repository).Delete(new(a.Code,a.Owner,a.Version)).Success);

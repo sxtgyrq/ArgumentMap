@@ -60,7 +60,9 @@ internal static class CodeMigrationChecks
         Assert.AreEqual("中文负责人", a.Owner); Assert.AreEqual("保留中文说明", a.Properties.RoadDetail);
         Assert.AreEqual(500, a.Properties.Speed); Assert.AreEqual((short)1, a.Properties.PassInOpposeDirection); Assert.IsTrue(b.IsLocked);
         CollectionAssert.AreEqual(new[] { (100,110), (110,110), (130,110) }, a.Nodes.Select(n => (n.X,n.Y)).ToArray());
-        var before = crosses.GetAll().Data!; Assert.AreEqual(2, before.Length); Assert.IsTrue(before.All(c => c.Key.IsValid));
+        var before = repository.Transaction(s => s.Crosses.Values.ToArray()); Assert.AreEqual(1, before.Length); Assert.IsTrue(before.All(c => c.Key.IsValid));
+        var visible = crosses.GetAll().Data!;
+        Assert.AreEqual(repository.Transaction(s => s.Crosses.Keys.Count(k => !s.StaleCrosses.Contains(k))), visible.Length);
         var main = before.Single(c => c.Key.Contains(a.Code));
         Assert.AreEqual(CrossState.Connected, main.State); Assert.AreEqual(6L, main.Version);
         if (oldVersion != 1)
@@ -69,7 +71,10 @@ internal static class CodeMigrationChecks
             Assert.AreEqual(a.Code == main.Key.RoadCode1 ? 3L : 7L, main.RoadVersion1);
             Assert.AreEqual(a.Code == main.Key.RoadCode1 ? 7L : 3L, main.RoadVersion2);
         }
-        Assert.AreEqual(CrossState.Disconnected, before.Single(c => c.Key.Position == new CrossPosition(401,401)).State);
+        Assert.IsFalse(before.Any(c => c.Key.Position == new CrossPosition(401,401)), "Historical half-integer settings are backed up and retired, never rounded.");
+        Assert.IsNotNull(repository.CrossIntegerMigrationBackupPath);
+        using var integerBackup = JsonDocument.Parse(File.ReadAllText(repository.CrossIntegerMigrationBackupPath));
+        Assert.AreEqual(2, integerBackup.RootElement.GetProperty("Tables").GetProperty("Crosses").GetArrayLength());
         Assert.IsTrue(repository.Transaction(s => s.StaleCrosses.Contains(main.Key) && s.PendingSegments.Contains((a.Code,0))));
         while (crosses.Calculate().Data!.CanContinue) { }
         var after = crosses.GetAll().Data!.Single(c => c.Key == main.Key);
@@ -89,6 +94,8 @@ internal static class CodeMigrationChecks
         Assert.AreEqual(0, Convert.ToInt32(query.ExecuteScalar()));
         query.CommandText = "SELECT GROUP_CONCAT(COLUMN_NAME ORDER BY ORDINAL_POSITION) FROM information_schema.KEY_COLUMN_USAGE WHERE TABLE_SCHEMA=@db AND TABLE_NAME='Crosses' AND CONSTRAINT_NAME='PRIMARY'";
         Assert.AreEqual("RoadCode1,RoadCode2,X,Y", query.ExecuteScalar());
+        query.CommandText = "SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=@db AND TABLE_NAME='Crosses' AND COLUMN_NAME IN ('X','Y') AND DATA_TYPE='int'";
+        Assert.AreEqual(2, Convert.ToInt32(query.ExecuteScalar()));
         query.CommandText = "SELECT SchemaVersion FROM MapMetadata WHERE Id=1"; Assert.AreEqual(MySqlLineRepository.CurrentSchemaVersion,Convert.ToInt32(query.ExecuteScalar()));
     }
 }

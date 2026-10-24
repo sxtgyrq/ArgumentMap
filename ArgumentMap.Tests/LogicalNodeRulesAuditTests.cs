@@ -82,12 +82,12 @@ public sealed class LogicalNodeRulesAuditTests
     {
         var guide=FlowDiagramGuideContent.FullText;
         var prompt=guide[guide.LastIndexOf("> 请按 ArgumentMap Flow v1",StringComparison.Ordinal)..];
-        foreach(var term in new[]{"4/6/8/10/12/18","全图 LN8 数量不限","logic 必须与 value 完全一致","不自动检查两端类型"})StringAssert.Contains(prompt,term);
+        foreach(var term in new[]{"4/6/8/10/12/18","全图 LN8 数量不限","¬ 对应 ¬(?)","不自动检查两端类型"})StringAssert.Contains(prompt,term);
         using var stub=new DirectLogicalNodeHttpStub();using var http=new HttpClient(stub){BaseAddress=new Uri("http://localhost/")};var client=new HttpLineClient(http,new("owner","test"));var map=new CoordinateMapView();map.ConfigureClient(client);Assert.IsTrue(map.BeginFlowDiagramImport());var window=new FlowDiagramImportWindow(client,map);
         try
         {
             var logic=((TextBlock)window.FindName("LogicRequirementHint")).Text;var unique=((TextBlock)window.FindName("UniquenessRequirementHint")).Text;
-            foreach(var term in new[]{"LN6、LN12、LN18","True","False","LN8","=／→","logic 必须与 value 完全一致","所有 logic 均不允许 null"})StringAssert.Contains(logic,term);
+            foreach(var term in new[]{"LN6、LN12、LN18","True","False","LN8","=／→","¬ 对应 ¬(?)","所有 logic 均不允许 null"})StringAssert.Contains(logic,term);
             foreach(var term in new[]{"LN12","转大写","logic 可重复","LN6","区分大小写","仅 LN12","LN4、LN8","LN8 全图数量不限"})StringAssert.Contains(unique,term);
             var document=MixedDocument();document["ln"]![5]!.AsObject().Remove("logic");document["ln"]![6]!["logic"]="";((TextBox)window.FindName("SourceText")).Text=document.ToJsonString();
             Assert.IsTrue(window.PreviewAsync().GetAwaiter().GetResult());Assert.AreEqual(0,stub.Repository.Transaction(s=>s.LogicalNodes.Count));Assert.IsTrue(window.ImportAsync().GetAwaiter().GetResult());

@@ -34,7 +34,7 @@ public sealed record LogicalNodeSnapshot(string Code, string Owner, long Version
 }
 
 public sealed record CreateLogicalNodeRequest(string Owner, decimal X, decimal Y, int SideLength,
-    LogicalNodeProperties Properties, string LoginCode = "");
+    LogicalNodeProperties Properties, string LoginCode = "", string? InstanceParentCode = null);
 public sealed record UpdateLogicalNodeRequest(string Code, string Owner, long Version, string Value, string Info, string LoginCode = "", string? LogicLanguage = null, string? OperandKind = null);
 public sealed record DeleteLogicalNodeRequest(string Code, string Owner, long Version, string LoginCode = "");
 public sealed record MoveLogicalNodeRequest(string Code, string Owner, long Version, decimal X, decimal Y, string LoginCode = "");
@@ -44,6 +44,10 @@ public sealed record CalculateLogicalNodeRequest(string UserName, string LoginCo
 public interface ILogicalNodeStepClient
 {
     Task<ServiceResult<LogicalNodeCalculationProgress>> CalculateLogicalNodeStepAsync(string? afterCode);
+}
+public interface ILogicalNodeInstanceCreationClient
+{
+    Task<ServiceResult<LogicalNodeSnapshot>> CreateLogicalNodeInstanceAsync(decimal x,decimal y,string parentCode,LogicalNodeProperties properties);
 }
 
 public interface ILogicalNodeMoveClient

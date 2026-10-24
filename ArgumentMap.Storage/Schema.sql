@@ -44,8 +44,8 @@ CREATE TABLE IF NOT EXISTS LineNodes (
 CREATE TABLE IF NOT EXISTS Crosses (
     RoadCode1 VARCHAR(10) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
     RoadCode2 VARCHAR(10) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
-    X DECIMAL(7,1) NOT NULL,
-    Y DECIMAL(7,1) NOT NULL,
+    X INT NOT NULL,
+    Y INT NOT NULL,
     RoadOrder1 INT NOT NULL,
     RoadOrder2 INT NOT NULL,
     Percent1 DECIMAL(20,18) NOT NULL DEFAULT 0,
@@ -63,10 +63,11 @@ CREATE TABLE IF NOT EXISTS Crosses (
     CONSTRAINT AM9_FK_Cross_Line1 FOREIGN KEY (RoadCode1) REFERENCES `Lines`(LineCode) ON DELETE CASCADE,
     CONSTRAINT AM9_FK_Cross_Line2 FOREIGN KEY (RoadCode2) REFERENCES `Lines`(LineCode) ON DELETE CASCADE,
     CONSTRAINT AM9_CK_Cross_Position CHECK (Percent1 BETWEEN 0 AND 1 AND Percent2 BETWEEN 0 AND 1),
+    CONSTRAINT CK_Cross_IntegerCoordinates CHECK (X BETWEEN 0 AND 500000 AND Y BETWEEN 0 AND 500000 AND X=FLOOR(X) AND Y=FLOOR(Y)),
     CONSTRAINT AM9_CK_Cross CHECK (REGEXP_LIKE(RoadCode1, '^[A-Z]{10}$', 'c') AND REGEXP_LIKE(RoadCode2, '^[A-Z]{10}$', 'c') AND RoadCode1 > RoadCode2 AND X BETWEEN 0 AND 500000 AND Y BETWEEN 0 AND 500000
         AND X * 2 = FLOOR(X * 2) AND Y * 2 = FLOOR(Y * 2)
         AND RoadOrder1 >= 0 AND RoadOrder2 >= 0 AND RoadVersion1 >= 0 AND RoadVersion2 >= 0 AND CrossState IN (-1, 0, 1, 2, 3) AND Version >= 0)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='交点及通行关系，坐标保留一位小数，支持半整数';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='整数交点及通行关系，按线路对及整数坐标识别';
 
 CREATE TABLE IF NOT EXISTS LogicalNodes (
     Code VARCHAR(10) CHARACTER SET ascii COLLATE ascii_bin NOT NULL PRIMARY KEY,
@@ -87,8 +88,8 @@ CREATE TABLE IF NOT EXISTS LogicalNodes (
     CONSTRAINT CK_LN_Logic6Required CHECK (SideLength<>6 OR REGEXP_LIKE(LogicLanguage,'[^[:space:]]','c')),
     CONSTRAINT CK_LN_Logic12Required CHECK (SideLength<>12 OR REGEXP_LIKE(LogicLanguage,'[^[:space:]]','c')),
     CONSTRAINT CK_LN_BranchValue CHECK (SideLength<>4 OR CONVERT(`Value` USING binary) IN (_binary'True',_binary'False')),
-    CONSTRAINT CK_LN_RelationValue CHECK (SideLength<>8 OR CONVERT(`Value` USING binary) IN (X'3D',X'E28692',X'E28694',X'E28A87',X'E28A8B',X'E28A86',X'E28A8A')),
-    CONSTRAINT CK_LN_RelationLogic CHECK (SideLength<>8 OR CONVERT(LogicLanguage USING binary)=CONVERT(`Value` USING binary)),
+    CONSTRAINT CK_LN_RelationValue CHECK (SideLength<>8 OR CONVERT(`Value` USING binary) IN (X'3D',X'E28692',X'E28694',X'E28A87',X'E28A8B',X'E28A86',X'E28A8A',X'C2AC')),
+    CONSTRAINT CK_LN_RelationLogic CHECK (SideLength<>8 OR CONVERT(LogicLanguage USING binary)=CASE WHEN CONVERT(`Value` USING binary)=X'C2AC' THEN X'C2AC283F29' ELSE CONVERT(`Value` USING binary) END),
     UpdatedAt DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
     CONSTRAINT CK_LN_Value12Upper CHECK (SideLength<>12 OR CONVERT(`Value` USING binary)=CONVERT(UPPER(`Value`) USING binary)),
     CONSTRAINT CK_LN_InstanceValue CHECK (SideLength<>10 OR (REGEXP_LIKE(`Value`,'[^[:space:]]','c') AND CONVERT(`Value` USING binary)=CONVERT(LOWER(`Value`) USING binary))),

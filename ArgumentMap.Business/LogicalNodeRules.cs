@@ -13,5 +13,5 @@ public static class LogicalNodeRules
     public static LogicalNodeViolation? ValidateNew(LogicalNodeSnapshot node, LineStoreState state) =>
         LogicalNodeGeometryRules.ValidateNew(node,state.Lines.Values,state.Crosses,state.LogicalNodes.Values);
     public static LogicalNodeViolation? ValidateMap(LineStoreState state, LineSnapshot? replacement = null) =>
-        LogicalNodeGeometryRules.ValidateMap(state.Lines.Values,state.Crosses,state.LogicalNodes.Values,replacement);
+        LogicalNodeGeometryRules.ValidateMap(state.Lines.Values,state.Crosses,state.LogicalNodes.Values,replacement,()=>CrossGeometry.For(state));
 }

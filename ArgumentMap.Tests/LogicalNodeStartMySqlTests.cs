@@ -48,7 +48,7 @@ public sealed class LogicalNodeStartMySqlTests
     {
         var repository=new MySqlLineRepository(settings);Add(repository,90,110,130,110);var service=new LogicalNodeService(repository);
         Assert.IsTrue(service.Create(new("owner",110.5m,110.5m,6,new(){Value="中文节点"})).Success);var before=Snapshot(repository);
-        Sql(settings,"ALTER TABLE LogicalNodes DROP CHECK CK_LN_InstanceValue, DROP CHECK CK_LN_InstanceLogic, DROP CHECK CK_LN_BranchValue, DROP CHECK CK_LN_RelationValue, DROP CHECK CK_LN_RelationLogic, DROP CHECK CK_LN_Value12Upper, DROP INDEX UQ_LN_Value12, DROP COLUMN Value12Key, DROP CHECK CK_LN_V14, DROP INDEX UQ_LN_Start, DROP COLUMN StartSlot, CHANGE COLUMN `Value` Name VARCHAR(32) NOT NULL, ADD COLUMN NodeType INT NOT NULL DEFAULT 99, ADD COLUMN Weight INT NOT NULL DEFAULT 10, ADD CONSTRAINT CK_LN_V12 CHECK (MOD(X,1)=0.5 AND MOD(Y,1)=0.5 AND SideLength IN (6,12))");
+        Sql(settings,"DROP TRIGGER TR_LN10_Attributes_Insert; DROP TRIGGER TR_LN10_Attributes_Update; ALTER TABLE LogicalNodes DROP CHECK CK_LN_InstanceAttributes, DROP CHECK CK_LN_ValueLength, DROP CHECK CK_LN_InstanceValue, DROP CHECK CK_LN_InstanceLogic, DROP CHECK CK_LN_BranchValue, DROP CHECK CK_LN_RelationValue, DROP CHECK CK_LN_RelationLogic, DROP CHECK CK_LN_Value12Upper, DROP INDEX UQ_LN_Value12, DROP COLUMN Value12Key, DROP CHECK CK_LN_V14, DROP INDEX UQ_LN_Start, DROP COLUMN StartSlot, CHANGE COLUMN `Value` Name VARCHAR(32) NOT NULL, ADD COLUMN NodeType INT NOT NULL DEFAULT 99, ADD COLUMN Weight INT NOT NULL DEFAULT 10, ADD CONSTRAINT CK_LN_V12 CHECK (MOD(X,1)=0.5 AND MOD(Y,1)=0.5 AND SideLength IN (6,12))");
         Sql(settings,"UPDATE MapMetadata SET SchemaVersion=12 WHERE Id=1");
         if(interrupt)
         {

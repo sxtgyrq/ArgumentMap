@@ -90,4 +90,21 @@ public sealed class MapAreaPasteUiTests
         }
         finally{window.Close();}
     }
+
+    [STATestMethod]
+    public void LegacyHalfCrossClipboardIsRejectedExplicitlyWithoutDroppingRelationsOrWritingMap()
+    {
+        using var handler=new DirectLogicalNodeHttpStub();MapAreaPasteTests.Fixture(handler.Repository);using var http=new HttpClient(handler){BaseAddress=new Uri("http://localhost/")};var window=Window(new(http,new("owner","test")));
+        try
+        {
+            window.Show();var view=(CoordinateMapView)window.FindName("MapView");Select(view);Assert.IsTrue(view.TryCopySelection(out var text));
+            var json=JsonNode.Parse(text)!.AsObject();var position=json["selection"]!["crosses"]![0]!["key"]!["position"]!;
+            position["x2"]=position["x2"]!.GetValue<int>()+1;var legacy=json.ToJsonString();var before=LogicalNodeMySqlTests.Snapshot(handler.Repository);
+            Assert.IsNull(MapAreaClipboard.Decode(legacy,out var isArea));Assert.IsTrue(isArea);
+            Assert.IsFalse(view.BeginPasteSelection(legacy));Assert.IsFalse(view.IsPastingArea);Assert.IsTrue(view.IsAreaMoveMode);
+            StringAssert.Contains(view.OperationMessage,"Cross 必须为整数坐标");StringAssert.Contains(view.OperationMessage,"重新框选");
+            Assert.AreEqual(0,handler.AreaPastes);Assert.AreEqual(before,LogicalNodeMySqlTests.Snapshot(handler.Repository));Assert.IsNotNull(MapAreaClipboard.Decode(text));
+        }
+        finally{window.Close();}
+    }
 }

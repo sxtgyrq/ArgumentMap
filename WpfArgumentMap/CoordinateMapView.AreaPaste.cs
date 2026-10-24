@@ -18,7 +18,7 @@ public sealed partial class CoordinateMapView
         if(selection.LogicalNodes.Any(n=>n.SideLength==18))
         {ClipboardNotice("选区包含 LN18 开始节点，不能复制；请重新框选并排除开始节点，移动和删除仍可使用。");return false;}
         if(!MapAreaCopyRules.Valid(selection))
-        {ClipboardNotice("选区含无效的 LN、换行字段，或超过单批上限，请分批框选并核对节点内容后复制。");return false;}
+        {ClipboardNotice("选区含无效的 LN、Cross 或换行字段，或超过单批上限；Cross 必须为整数坐标，请刷新后重新框选。");return false;}
         text=MapAreaClipboard.Encode(selection);
         if(text.Length<=MapAreaCopyRules.MaximumTextLength)return true;
         text="";ClipboardNotice("框选副本超过 100 万字符，请分批复制。");return false;
@@ -28,7 +28,7 @@ public sealed partial class CoordinateMapView
         if(IsSaving)return false;
         if(IsFlowDiagramImportActive||IsPastingLine||IsMovingLogicalNode||IsPlacingLogicalNode||editor.Mode is LineEditorMode.Ready or LineEditorMode.Drawing)
         {ClipboardNotice("请先完成或取消当前编辑，再粘贴框选副本。");return false;}
-        if(!MapAreaCopyRules.Valid(selection)){ClipboardNotice("剪贴板中的框选副本无效，请重新复制。");return false;}
+        if(!MapAreaCopyRules.Valid(selection)){ClipboardNotice("剪贴板中的框选副本无效或已过期；Cross 必须为整数坐标，请刷新后重新框选复制。");return false;}
         if(areaPasteClient is null){ClipboardNotice("当前服务不支持整组粘贴，请连接最新版 Server。");return false;}
         areaMove.Cancel();editor.Cancel();logicalNodes.Leave();crossEditor.LeaveSelection();IsPlacingLogicalNode=false;
         areaBoxStart=areaBoxEnd=areaAnchor=dragPosition=null;ReleaseMouseCapture();pastedArea=selection;
@@ -74,7 +74,7 @@ public sealed partial class CoordinateMapView
             var nodes=road.Nodes.Select(n=>new GridPoint(n.X+delta.X,n.Y+delta.Y)).ToArray();
             DrawPolyline(dc,nodes,pen);DrawDirectionArrows(dc,new(road.Code,nodes,road.Version,road.IsLocked,road.Properties,road.Owner),Plot,pen);
         }
-        foreach(var cross in source.Crosses.Where(c=>crossEditor.IsVisible(c.State)))
+        foreach(var cross in source.Crosses.Where(c=>c.Key.IsValid&&crossEditor.IsVisible(c.State)))
         {
             var crossPen=valid?cross.State switch{CrossState.Disconnected=>DisconnectedCrossPen,CrossState.Connected=>ConnectedCrossPen,CrossState.Road1ToRoad2=>Road1ExitCrossPen,CrossState.Road2ToRoad1=>Road2ExitCrossPen,_=>UnsetCrossPen}:pen;
             dc.DrawEllipse(Brushes.White,crossPen,Shift(cross.Key.Position.X2/2m,cross.Key.Position.Y2/2m),6,6);

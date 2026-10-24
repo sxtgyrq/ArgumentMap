@@ -132,10 +132,11 @@ public sealed class FlowDiagramTests
     }
 
     [TestMethod]
-    public void HalfIntegerDiagonalCrossAndResponseArraysAreDetachedFromCommittedState()
+    public void HalfIntegerCrossDeclarationIsRejected_AndIgnoredGeometryResponseIsDetached()
     {
         var map=new TestMap();var d=Crossing();d["roads"]![0]!["points"]=JsonNode.Parse("[[-10,-10],[11,11]]");d["roads"]![1]!["points"]=JsonNode.Parse("[[-10,11],[11,-10]]");d["crosses"]![0]!["at"]=JsonNode.Parse("[0.5,0.5]");
-        var result=Import(map,d);Assert.IsTrue(result.Success,result.Message);var data=result.Data!;Assert.AreEqual(70.5,data.Added.Crosses.Single().Key.Position.X);Assert.AreEqual(30.5,data.Added.Crosses.Single().Key.Position.Y);
+        var original=map.Snapshot();var rejected=Import(map,d);Assert.IsFalse(rejected.Success);Assert.AreEqual(original,map.Snapshot());
+        d["crosses"]=new JsonArray();var result=Import(map,d);Assert.IsTrue(result.Success,result.Message);var data=result.Data!;Assert.AreEqual(0,data.Added.Crosses.Length);
         var before=map.Snapshot();data.Added.Lines[0].Nodes[0]=data.Added.Lines[0].Nodes[0] with{X=12345};data.Map!.Lines[0].Nodes[0]=data.Map.Lines[0].Nodes[0] with{Y=54321};Assert.AreEqual(before,map.Snapshot());
     }
 

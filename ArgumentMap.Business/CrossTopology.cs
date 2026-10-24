@@ -6,6 +6,13 @@ namespace ArgumentMap.Business;
 
 internal static class CrossTopology
 {
+    // Match the old DictCross query (IsChanged >= 0). Pending records stay in
+    // storage so K can restore their passage settings, but are not map markers.
+    internal static CrossSnapshot[] Visible(LineStoreState state) => state.Crosses.Values
+        .Where(c => c.Key.Position.IsInteger && !state.StaleCrosses.Contains(c.Key) &&
+            state.Lines.ContainsKey(c.Key.RoadCode1) && state.Lines.ContainsKey(c.Key.RoadCode2))
+        .OrderBy(c => c.Key).ToArray();
+
     internal static void MarkChanged(LineStoreState state,IReadOnlySet<string> roads,bool recordSqlMarks=false)
     {
         foreach(var key in state.Crosses.Keys.Where(k=>roads.Contains(k.RoadCode1)||roads.Contains(k.RoadCode2)))
@@ -27,11 +34,9 @@ internal static class CrossTopology
     internal static void CalculateSegment(LineStoreState state, string lineCode, int segment)
     {
         if (!state.Lines.TryGetValue(lineCode, out var line) || segment < 0 || segment + 1 >= line.Nodes.Length) return;
-        foreach (var other in state.Lines.Values.Where(other => other.Code != lineCode).OrderBy(other => other.Code))
-            for (var j = 0; j < other.Nodes.Length - 1; j++)
+        foreach (var contact in CrossGeometry.For(state).ForSegment(lineCode,segment))
             {
-                if (!LineGeometry.TryIntersection(line.Nodes[segment], line.Nodes[segment + 1],
-                    other.Nodes[j], other.Nodes[j + 1], out var position)) continue;
+                var other=state.Lines[contact.OtherRoadCode];var j=contact.OtherSegment;var position=contact.Position;
                 var lineFirst = string.CompareOrdinal(line.Code, other.Code) > 0;
                 var first = lineFirst ? line : other;
                 var second = lineFirst ? other : line;

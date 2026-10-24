@@ -30,6 +30,44 @@ public sealed class CrossVisibilityTests
         var view=new CoordinateMapView();view.Measure(new Size(1000,600));view.Arrange(new Rect(0,0,1000,600));view.UpdateLayout();
         view.ResetView();view.ZoomAtCenter(4);Editor(view).ReplaceCrosses(crosses);return view;
     }
+    [TestMethod]
+    public async Task LegacyHalfCrossesAreExcludedFromCacheRefreshCalculationAndSelection()
+    {
+        var whole=Cross(CrossState.Connected,0,true);
+        var half=whole with{Key=whole.Key with{Position=new(500001,500001)}};
+        var client=new Client([half,whole]);var editor=new CrossEditor();editor.ConfigureClient(client);editor.ReplaceCrosses([half,whole]);
+        CollectionAssert.AreEqual(new[]{whole},editor.Crosses.ToArray());StringAssert.Contains(editor.Message,"非整数 Cross");
+        editor.ToggleSelection();editor.SelectClosest(new(250000.5,250000.5),.1);Assert.IsNull(editor.Selected);
+        Assert.IsFalse(await editor.SetStateAsync(CrossState.Disconnected));Assert.AreEqual(0,client.Saves);
+        Assert.IsTrue(await editor.RefreshAsync());CollectionAssert.AreEqual(new[]{whole},editor.Crosses.ToArray());
+        Assert.IsTrue(await editor.CalculateAsync(()=>{}));CollectionAssert.AreEqual(new[]{whole},editor.Crosses.ToArray());
+        editor.SelectClosest(new(250000,250000),.1);Assert.AreEqual(whole,editor.Selected);Assert.AreEqual(0,client.Saves);
+    }
+    [STATestMethod,TestCategory("Rendering")]
+    public void LegacyHalfCrossesCreateNoMapOrImportPreviewMarkers()
+    {
+        var whole=Cross(CrossState.Connected,0,true);
+        var half=whole with{Key=whole.Key with{Position=new(500001,500001)}};
+        var view=new CoordinateMapView();var window=new Window{Content=view,Width=1000,Height=600,WindowStartupLocation=WindowStartupLocation.Manual,Left=-10000,Top=-10000,ShowActivated=false,ShowInTaskbar=false};
+        byte[] Capture()
+        {
+            // A live presentation source and completed render pass prevent the
+            // bitmap from reusing the preceding frame of this retained visual.
+            view.InvalidateVisual();view.Dispatcher.Invoke(()=>{},System.Windows.Threading.DispatcherPriority.ContextIdle);
+            return Pixels(view);
+        }
+        try
+        {
+            window.Show();window.UpdateLayout();view.ResetView();view.ZoomAtCenter(4);
+            var at=(Point)typeof(CoordinateMapView).GetMethod("ToScreen",BindingFlags.Instance|BindingFlags.NonPublic)!.Invoke(view,[new Point(whole.Key.Position.X,whole.Key.Position.Y)])!;
+            Assert.IsTrue(whole.Key.IsValid);Assert.IsTrue(new Rect(0,0,view.ActualWidth,view.ActualHeight).Contains(at));
+            var empty=Capture();Editor(view).ReplaceCrosses([half]);CollectionAssert.AreEqual(empty,Capture());
+            Assert.IsTrue(view.BeginFlowDiagramImport());view.ShowFlowDiagramPreview(new([],[],[]));var emptyPreview=Capture();
+            view.ShowFlowDiagramPreview(new([],[],[half]));CollectionAssert.AreEqual(emptyPreview,Capture());
+            view.ShowFlowDiagramPreview(new([],[],[whole]));Assert.IsFalse(emptyPreview.SequenceEqual(Capture()),"An integer Cross must produce a visible preview marker.");
+        }
+        finally{window.Close();}
+    }
     [TestMethod,DataRow(CrossState.Connected),DataRow(CrossState.Road1ToRoad2),DataRow(CrossState.Road2ToRoad1),DataRow(CrossState.Disconnected),DataRow(CrossState.Unset)]
     public void HideClearsSelectedRelation_AndVisibleFilterPreventsReselectionWithoutRemovingData(CrossState state)
     {

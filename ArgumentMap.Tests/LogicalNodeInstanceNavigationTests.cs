@@ -25,7 +25,7 @@ public sealed class LogicalNodeInstanceNavigationTests
     {window.WindowStartupLocation=WindowStartupLocation.Manual;window.Left=-10000;window.Top=-10000;window.ShowInTaskbar=false;window.ShowActivated=false;return window;}
     private static LogicalNodeEditor Editor(CoordinateMapView view)=>(LogicalNodeEditor)typeof(CoordinateMapView).GetField("logicalNodes",BindingFlags.Instance|BindingFlags.NonPublic)!.GetValue(view)!;
     private static LogicalNodeWindow? Dialog(MainWindow main)=>(LogicalNodeWindow?)typeof(MainWindow).GetField("logicalNodeWindow",BindingFlags.Instance|BindingFlags.NonPublic)!.GetValue(main);
-    private static LogicalNodeSnapshot Instance(string value="m",int size=10)=>new("BBBBBBBBBB","owner",0,100.5m,50.5m,size,new(){Value=value,LogicLanguage=LogicalNodeInstanceRules.Expression(value)});
+    private static LogicalNodeSnapshot Instance(string value="m(id=1)",int size=10)=>new("BBBBBBBBBB","owner",0,100.5m,50.5m,size,new(){Value=value,LogicLanguage=LogicalNodeInstanceRules.Expression(value)});
     private static LogicalNodeSnapshot Parent(string value="M",string code="AAAAAAAAAA",int size=12)=>new(code,"other",0,50.5m,50.5m,size,new(){Value=value,LogicLanguage="自定义逻辑，故意与值不同"});
     private static bool Complete(Task<bool> task)
     {LogicalNodeWindowEntryTests.DrainUntil(()=>task.IsCompleted);return task.GetAwaiter().GetResult();}
@@ -35,7 +35,7 @@ public sealed class LogicalNodeInstanceNavigationTests
     {
         using var handler=new DirectLogicalNodeHttpStub();var service=new LogicalNodeService(handler.Repository);
         var parent=service.Create(new("other",50.5m,50.5m,12,new(){Value=parentValue,LogicLanguage="任意不同表达式"})).Data!;
-        var instance=service.Create(new(readOnly?"other":"owner",100.5m,50.5m,10,new(){Value=LogicalNodeInstanceRules.Normalize(parentValue)})).Data!;
+        var instance=service.Create(new(readOnly?"other":"owner",100.5m,50.5m,10,new(){Value=LogicalNodeInstanceRules.DefaultValue(parentValue,"1")})).Data!;
         using var http=new HttpClient(handler){BaseAddress=new Uri("http://localhost/")};var main=Offscreen(new MainWindow(new HttpLineClient(http,new("owner","test"))));
         try
         {
@@ -58,7 +58,7 @@ public sealed class LogicalNodeInstanceNavigationTests
         finally{Dialog(main)?.Close();main.Close();}
     }
 
-    [STATestMethod,DataRow("m"),DataRow("h人"),DataRow("people1"),DataRow("人")]
+    [STATestMethod,DataRow("m(name=Alice)"),DataRow("h人(id=1)"),DataRow("people(id=42)"),DataRow("人(id=旧实例)")]
     public void MatchesOnlyLn12Value_IncludingLegacyInstances_AndUsesCurrentUnsavedValue(string value)
     {
         var expected=LogicalNodeInstanceRules.ParentValue(value);var target=Parent(expected);
@@ -115,7 +115,7 @@ public sealed class LogicalNodeInstanceNavigationTests
         {
             dialog.Show();var found=0;dialog.InstanceParentLocationRequested+=_=>found++;((TextBox)dialog.FindName("InfoInput")).Text="保留草稿";
             Assert.IsFalse(Complete(dialog.LocateInstanceParentAsync()));Assert.AreEqual(0,found);Assert.IsTrue(dialog.IsVisible);Assert.IsTrue(((Button)dialog.FindName("SaveButton")).IsEnabled);
-            Assert.AreEqual("m",((TextBox)dialog.FindName("ValueInput")).Text);Assert.AreEqual("m ∈ M",((TextBox)dialog.FindName("LogicInput")).Text);Assert.AreEqual("保留草稿",((TextBox)dialog.FindName("InfoInput")).Text);
+            Assert.AreEqual("m(id=1)",((TextBox)dialog.FindName("ValueInput")).Text);Assert.AreEqual("m(id=1)∈M∧1∈M.ID",((TextBox)dialog.FindName("LogicInput")).Text);Assert.AreEqual("保留草稿",((TextBox)dialog.FindName("InfoInput")).Text);
             StringAssert.Contains(((TextBlock)dialog.FindName("Status")).Text,change=="expired"?"登录已失效":change=="duplicate"?"无法唯一定位":"找不到");
         }
         finally{dialog.Close();}
@@ -132,7 +132,7 @@ public sealed class LogicalNodeInstanceNavigationTests
             Assert.IsFalse(((Button)dialog.FindName("LocateInstanceParentButton")).IsEnabled);Assert.IsFalse(((Button)dialog.FindName("SaveButton")).IsEnabled);
             Assert.IsFalse(Complete(dialog.LocateInstanceParentAsync()));dialog.Close();Assert.IsTrue(dialog.IsVisible);
             ((TextBox)dialog.FindName("ValueInput")).Text="n";gate.SetResult(ServiceResult<LogicalNodeSnapshot[]>.Ok([Parent()],"ok"));
-            Assert.IsFalse(Complete(pending));Assert.AreEqual(0,found);Assert.AreEqual("n ∈ N",((TextBox)dialog.FindName("LogicInput")).Text);
+            Assert.IsFalse(Complete(pending));Assert.AreEqual(0,found);Assert.AreEqual("n∈N",((TextBox)dialog.FindName("LogicInput")).Text);
             Assert.IsTrue(((Button)dialog.FindName("LocateInstanceParentButton")).IsEnabled);StringAssert.Contains(((TextBlock)dialog.FindName("Status")).Text,"实例值已改变");
         }
         finally{gate.TrySetResult(ServiceResult<LogicalNodeSnapshot[]>.Ok([],"ok"));dialog.Close();}

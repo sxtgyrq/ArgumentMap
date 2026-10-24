@@ -80,13 +80,13 @@ internal static class CrossDirectionMySqlChecks
         {
             connection.Open();using var query=connection.CreateCommand();
             query.CommandText="SELECT SchemaVersion FROM MapMetadata WHERE Id=1";Assert.AreEqual(MySqlLineRepository.CurrentSchemaVersion,Convert.ToInt32(query.ExecuteScalar()));
-            foreach(var invalid in new[]{"CrossState=4","CrossState=-2","X=0.1"})
+            foreach(var invalid in new[]{"CrossState=4","CrossState=-2","X=500001"})
             {
                 using var transaction=connection.BeginTransaction(); query.Transaction=transaction;
                 try
                 {
                     query.CommandText="UPDATE Crosses SET "+invalid;
-                    try {query.ExecuteNonQuery();Assert.Fail("数据库必须拒绝无效状态和非半整数坐标。");}
+                    try {query.ExecuteNonQuery();Assert.Fail("数据库必须拒绝无效状态和越界整数坐标。");}
                     catch(MySqlException error) when(error.Number==3819) { }
                 }
                 finally {transaction.Rollback();query.Transaction=null;}
@@ -96,9 +96,10 @@ internal static class CrossDirectionMySqlChecks
 
         var halfA=(await alice.CreateAsync()).Data!; halfA=(await alice.SaveAsync(halfA.Code,halfA.Version,TestMap.Shape(halfA,200,200,201,201).Nodes)).Data!;
         var halfB=(await bob.CreateAsync()).Data!; halfB=(await bob.SaveAsync(halfB.Code,halfB.Version,TestMap.Shape(halfB,200,201,201,200).Nodes)).Data!;
-        await Calculate(alice);var half=(await bob.GetCrossesAsync()).Data!.Single(c=>c.Key.Position==new CrossPosition(401,401));
-        Assert.IsTrue((await bob.SetCrossStateAsync(half.Key,half.Version,CrossState.Road1ToRoad2)).Success);
-        Assert.AreEqual(CrossState.Road1ToRoad2,new CrossService(new MySqlLineRepository(settings)).GetAll().Data!.Single(c=>c.Key==half.Key).State);
+        await Calculate(alice);var half=CrossKey.Create(halfA.Code,halfB.Code,new CrossPosition(401,401));
+        Assert.IsFalse((await bob.GetCrossesAsync()).Data!.Any(c=>c.Key==half));
+        Assert.IsFalse((await bob.SetCrossStateAsync(half,0,CrossState.Road1ToRoad2)).Success);
+        Assert.IsFalse(new CrossService(new MySqlLineRepository(settings)).GetAll().Data!.Any(c=>c.Key==half));
         Assert.IsTrue((await alice.DeleteAsync(a.Code,a.Version)).Success);
         Assert.IsFalse((await bob.GetCrossesAsync()).Data!.Any(c=>c.Key==cross.Key));
     }

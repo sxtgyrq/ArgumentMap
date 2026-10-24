@@ -18,11 +18,11 @@ namespace ArgumentMap.Tests;
 [TestClass,TestCategory("Unit")]
 public sealed class LogicalNodeClipboardTests
 {
-    internal static LogicalNodeProperties Props(int size,string symbol="=")=>new(){Value=size==10?"people":size==12?"S":size==6?"可重复的判断":symbol,LogicLanguage=size==10?"people ∈ PEOPLE":size==12?"S":size==6?"P":symbol,Info="说明原文\n复制后保留"};
+    internal static LogicalNodeProperties Props(int size,string symbol="=")=>new(){Value=size==10?"people(id=1)":size==12?"S":size==6?"可重复的判断":symbol,LogicLanguage=size==10?"people(id=1)∈PEOPLE∧1∈PEOPLE.ID":size==12?"S":size==6?"P":LogicalNodeRelationRules.Expression(symbol),Info="说明原文\n复制后保留"};
     private static LogicalNodeEditor Editor(CoordinateMapView view)=>(LogicalNodeEditor)typeof(CoordinateMapView).GetField("logicalNodes",BindingFlags.NonPublic|BindingFlags.Instance)!.GetValue(view)!;
     private static MainWindow Window(ILineClient client)=>new(client){Left=-10000,Top=-10000,WindowStartupLocation=WindowStartupLocation.Manual,ShowInTaskbar=false,ShowActivated=false};
 
-    [STATestMethod,DataRow(12,"=","keyboard"),DataRow(6,"=","keyboard"),DataRow(8,"=","keyboard"),DataRow(8,"→","keyboard"),
+    [STATestMethod,DataRow(8,"¬","keyboard"),DataRow(8,"¬","edit-menu"),DataRow(8,"¬","ln-menu"),DataRow(12,"=","keyboard"),DataRow(6,"=","keyboard"),DataRow(8,"=","keyboard"),DataRow(8,"→","keyboard"),
         DataRow(12,"=","edit-menu"),DataRow(6,"=","edit-menu"),DataRow(8,"=","edit-menu"),DataRow(8,"→","edit-menu"),
         DataRow(12,"=","ln-menu"),DataRow(6,"=","ln-menu"),DataRow(8,"=","ln-menu"),DataRow(8,"→","ln-menu"),
         DataRow(10,"=","keyboard"),DataRow(10,"=","edit-menu"),DataRow(10,"=","ln-menu"),DataRow(8,"↔","keyboard"),DataRow(8,"↔","edit-menu"),DataRow(8,"↔","ln-menu"),DataRow(8,"⊇","keyboard"),DataRow(8,"⊇","edit-menu"),DataRow(8,"⊇","ln-menu"),DataRow(8,"⊋","keyboard"),DataRow(8,"⊋","edit-menu"),DataRow(8,"⊋","ln-menu"),DataRow(8,"⊆","keyboard"),DataRow(8,"⊆","edit-menu"),DataRow(8,"⊆","ln-menu"),DataRow(8,"⊊","keyboard"),DataRow(8,"⊊","edit-menu"),DataRow(8,"⊊","ln-menu")]
@@ -62,7 +62,7 @@ public sealed class LogicalNodeClipboardTests
         finally{main.Close();}
     }
 
-    [TestMethod,DataRow("size18"),DataRow("size-string"),DataRow("size-fraction"),DataRow("unknown"),DataRow("identity"),DataRow("positions"),DataRow("duplicate"),DataRow("missing"),DataRow("format"),
+    [TestMethod,DataRow("size18"),DataRow("size-string"),DataRow("size-fraction"),DataRow("unknown(id=1)"),DataRow("identity"),DataRow("positions"),DataRow("duplicate"),DataRow("missing"),DataRow("format"),
         DataRow("null"),DataRow("blank6"),DataRow("blank12"),DataRow("long-value"),DataRow("long-logic"),DataRow("long-info"),DataRow("relation-value"),DataRow("relation-logic"),DataRow("relation-empty")]
     public void InvalidClipboardCannotInjectIdentityUnsupportedSizesOrBypassTypeRules(string kind)
     {
@@ -70,7 +70,7 @@ public sealed class LogicalNodeClipboardTests
         switch(kind)
         {
             case "size18":json["size"]=18;break;case "size-string":json["size"]="6";break;case "size-fraction":json["size"]=6.5;break;
-            case "unknown":json["sql"]="text";break;case "identity":json["owner"]="admin";break;case "positions":json["positions"]=new JsonArray();break;
+            case "unknown(id=1)":json["sql"]="text";break;case "identity":json["owner"]="admin";break;case "positions":json["positions"]=new JsonArray();break;
             case "duplicate":raw=json.ToJsonString().Replace("\"size\":6","\"size\":6,\"size\":12");break;
             case "missing":json.Remove("size");break;case "format":json["format"]="argumentmap.flow/1";break;case "null":json["logic"]=null;break;
             case "blank6":json["logic"]=" ";break;case "blank12":json["size"]=12;json["logic"]="";break;
@@ -78,6 +78,24 @@ public sealed class LogicalNodeClipboardTests
             default:json["size"]=8;json["value"]=kind=="relation-value"?"=1":"=";json["logic"]=kind=="relation-empty"?"":"P";break;
         }
         Assert.IsNull(LogicalNodeClipboard.Decode(raw??json.ToJsonString()),kind);
+    }
+
+    [TestMethod,DataRow("¬"),DataRow("¬(?)")]
+    public void NegationClipboardAcceptsLegacyLogic_AndAlwaysWritesPlaceholder(string logic)
+    {
+        var json=new JsonObject{["format"]="argumentmap.ln/1",["size"]=8,["value"]="¬",["logic"]=logic,["info"]="保留说明"};
+        var decoded=LogicalNodeClipboard.Decode(json.ToJsonString());Assert.IsNotNull(decoded);
+        Assert.AreEqual("¬",decoded.Properties.Value);Assert.AreEqual("¬(?)",decoded.Properties.LogicLanguage);
+        Assert.AreEqual("保留说明",decoded.Properties.Info);
+        var encoded=JsonNode.Parse(LogicalNodeClipboard.Encode(decoded.SideLength,decoded.Properties))!;
+        Assert.AreEqual("¬(?)",encoded["logic"]!.GetValue<string>());
+    }
+
+    [TestMethod,DataRow("¬(P)"),DataRow("¬P"),DataRow("¬(?) "),DataRow(""),DataRow("NOT")]
+    public void NegationClipboardRejectsOperandsAndNoncanonicalLogic(string logic)
+    {
+        var json=new JsonObject{["format"]="argumentmap.ln/1",["size"]=8,["value"]="¬",["logic"]=logic,["info"]=""};
+        Assert.IsNull(LogicalNodeClipboard.Decode(json.ToJsonString()));
     }
 
     [STATestMethod,DataRow(6),DataRow(8),DataRow(12)]
@@ -139,7 +157,7 @@ public sealed class LogicalNodeClipboardMySqlTests
         Assert.IsTrue(results.All(r=>r.Success),string.Join(";",results.Select(r=>r.Message)));var nodes=results.Select(r=>r.Data!).ToArray();CollectionAssert.AreEquivalent(new[]{"alice","bob"},nodes.Select(n=>n.Owner).ToArray());Assert.AreEqual(2,nodes.Select(n=>n.Code).Distinct().Count());
         if(size==12){CollectionAssert.AreEquivalent(new[]{"S1","S2"},nodes.Select(n=>n.Properties.Value).ToArray());Assert.IsTrue(nodes.All(n=>n.Properties.LogicLanguage=="S"));}
         else if(size==6){CollectionAssert.AreEquivalent(new[]{"P1","P2"},nodes.Select(n=>n.Properties.LogicLanguage).ToArray());Assert.IsTrue(nodes.All(n=>n.Properties.Value==source.Properties.Value));}
-        else Assert.IsTrue(nodes.All(n=>n.Properties.Value==symbol&&n.Properties.LogicLanguage==symbol));
+        else Assert.IsTrue(nodes.All(n=>n.Properties.Value==symbol&&n.Properties.LogicLanguage==LogicalNodeRelationRules.Expression(symbol)));
         Assert.IsTrue(nodes.All(n=>n.Positions.Length==1&&!n.Positions[0].IsChanged&&n.Properties.Info==source.Properties.Info));var unchanged=service.GetAll().Data!.Single(n=>n.Code==source.Code);Assert.AreEqual(source.Properties,unchanged.Properties);Assert.AreEqual(source.Version,unchanged.Version);
         before=LineTopologyMySqlTests.RawSnapshot(settings);await TestLogin.ClientAsync(h1,server,"alice");Assert.AreEqual("LoginExpired",(await alice.CreateLogicalNodeAsync(400.5m,50.5m,size,copy.Properties)).Code);Assert.AreEqual(before,LineTopologyMySqlTests.RawSnapshot(settings));
         Assert.AreEqual(Snapshot(repository),Snapshot(new MySqlLineRepository(settings)));

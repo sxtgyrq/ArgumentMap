@@ -4,9 +4,13 @@ using ArgumentMap.Contracts;
 
 namespace ArgumentMap.Client;
 
-public sealed class HttpLineClient(HttpClient client, LoginSession session) : ILineClient, ICrossClient, ILinePropertiesClient, ILineDirectionClient, ILogicalNodeClient, ILogicalNodeStepClient, ILogicalNodeMoveClient, ILogicalNodeLogicClient, ILineTopologyClient, ILineNodeEditClient, IMapAreaMoveClient, IFlowDiagramClient, ILinePasteClient, IMapAreaPasteClient, IMapUndoClient, ILogicalNodeOperandClient
+public sealed class HttpLineClient(HttpClient client, LoginSession session) : ILineClient, ICrossClient, ILinePropertiesClient, ILineDirectionClient, ILogicalNodeClient, ILogicalNodeStepClient, ILogicalNodeMoveClient, ILogicalNodeLogicClient, ILineTopologyClient, ILineNodeEditClient, IMapAreaMoveClient, IFlowDiagramClient, ILinePasteClient, IMapAreaPasteClient, IMapUndoClient, ILogicalNodeOperandClient, ILogicalNodeConnectionClient, ILogicalNodeInstanceCreationClient
 {
     private string? pendingUndoRequest;
+    public Task<ServiceResult<LogicalNodeConnectionPlan>> PreviewLogicalNodeConnectionAsync(LogicalNodeConnectionAnchor source,LogicalNodeConnectionAnchor target,LogicalNodeConnectionKind kind=LogicalNodeConnectionKind.Direct)=>
+        Post<PreviewLogicalNodeConnectionRequest,LogicalNodeConnectionPlan>("PreviewLogicalNodeConnection",new(Session.UserName,source,target,Session.LoginCode,kind));
+    public Task<ServiceResult<LogicalNodeConnectionResult>> SaveLogicalNodeConnectionAsync(LogicalNodeConnectionPlan plan)=>
+        Post<SaveLogicalNodeConnectionRequest,LogicalNodeConnectionResult>("SaveLogicalNodeConnection",new(Session.UserName,plan,Session.LoginCode));
     public async Task<ServiceResult<MapUndoResult>> UndoAsync()
     {
         var candidate = Guid.NewGuid().ToString("N");
@@ -64,6 +68,8 @@ public sealed class HttpLineClient(HttpClient client, LoginSession session) : IL
     public Task<ServiceResult<LogicalNodeSnapshot[]>> GetLogicalNodesAsync() => Post<SessionRequest, LogicalNodeSnapshot[]>("GetLogicalNodes", new(Session.UserName, Session.LoginCode));
     public Task<ServiceResult<LogicalNodeSnapshot>> CreateLogicalNodeAsync(decimal x, decimal y, int sideLength, LogicalNodeProperties properties) =>
         Post<CreateLogicalNodeRequest, LogicalNodeSnapshot>(sideLength==6&&properties.OperandKind!=LogicalNodeOperandRules.Custom?"AddLogicalNodeWithOperandKind":"AddLogicalNode", new(Session.UserName, x, y, sideLength, properties, Session.LoginCode));
+    public Task<ServiceResult<LogicalNodeSnapshot>> CreateLogicalNodeInstanceAsync(decimal x,decimal y,string parentCode,LogicalNodeProperties properties) =>
+        Post<CreateLogicalNodeRequest, LogicalNodeSnapshot>("AddLogicalNode",new(Session.UserName,x,y,10,properties,Session.LoginCode,parentCode));
     public Task<ServiceResult<LogicalNodeSnapshot>> UpdateLogicalNodeAsync(string code, long version, string value, string info) =>
         Post<UpdateLogicalNodeRequest, LogicalNodeSnapshot>("UpdateLogicalNode", new(code, Session.UserName, version, value, info, Session.LoginCode));
     public Task<ServiceResult<bool>> DeleteLogicalNodeAsync(string code, long version) =>
@@ -116,12 +122,31 @@ public sealed class HttpLineClient(HttpClient client, LoginSession session) : IL
                 }
                 return ServiceResult<T>.Fail("HttpError", $"服务端拒绝提交 ({(int)response.StatusCode})，请检查节点格式和整数坐标。");
             }
-            return await response.Content.ReadFromJsonAsync<ServiceResult<T>>().ConfigureAwait(false)
-                ?? ServiceResult<T>.Fail("InvalidResponse", "服务端没有返回保存结果。");
+            var result=await response.Content.ReadFromJsonAsync<ServiceResult<T>>().ConfigureAwait(false);
+            if(result is null)return ServiceResult<T>.Fail("InvalidResponse", "服务端没有返回保存结果。");
+            if(result.Success&&HasInvalidCrosses(result.Data))
+                return ServiceResult<T>.Fail("InvalidResponse","服务端返回了无效或非整数 Cross，请更新 Server 后刷新地图；本次操作结果需刷新确认。");
+            return result;
         }
         catch (Exception exception) when (exception is HttpRequestException or OperationCanceledException or JsonException or IOException)
         {
             return ServiceResult<T>.Fail("ConnectionFailure", "无法完成服务请求，请检查服务后重试。当前绘制内容已保留。");
         }
     }
+
+    private static bool ValidCrosses(CrossSnapshot[]? crosses)=>crosses is not null&&crosses.All(c=>c is not null&&c.Key.IsValid);
+    private static bool HasInvalidCrosses(object? data)=>data switch
+    {
+        CrossSnapshot cross=>!cross.Key.IsValid,
+        CrossSnapshot[] crosses=>!ValidCrosses(crosses),
+        MapAreaSnapshot map=>!ValidCrosses(map.Crosses),
+        MapAreaSelection selection=>!ValidCrosses(selection.Crosses),
+        FlowDiagramResult flow=>HasInvalidCrosses(flow.Added)||HasInvalidCrosses(flow.Map),
+        MapAreaPasteResult pasted=>HasInvalidCrosses(pasted.Added)||HasInvalidCrosses(pasted.Map),
+        LinePasteResult pasted=>HasInvalidCrosses(pasted.Map),
+        MapUndoResult undo=>HasInvalidCrosses(undo.Map),
+        LogicalNodeConnectionResult connected=>HasInvalidCrosses(connected.Map),
+        LogicalNodeConnectionPlan {Join:{} join} plan=>!CrossKey.Create(plan.LineCode,join.RoadCode,join.Position).IsValid,
+        _=>false
+    };
 }

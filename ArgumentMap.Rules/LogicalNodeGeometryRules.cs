@@ -23,18 +23,20 @@ public static class LogicalNodeGeometryRules
         if (node.IsStart && nodes.Any(n => n.IsStart && n.Code != node.Code))
             return new("StartLogicalNodeExists", "全图只能有一个边长 18 的开始节点，请先删除已有开始节点。");
         if (ValidateSeparation(node,nodes.Where(n=>n.Code!=node.Code).OrderBy(n=>n.Code)) is {} separation) return separation;
-        return ValidateArea(node, lines.OrderBy(l => l.Code).ToArray(), crosses, allowMissingCross: false);
+        var ordered=lines.OrderBy(l=>l.Code).ToArray();var geometry=new Lazy<IntegerCrossIndex>(()=>new(ordered));
+        return ValidateArea(node, ordered, crosses, allowMissingCross: false, geometry);
     }
 
-    public static LogicalNodeViolation? ValidateMap(IEnumerable<LineSnapshot> existingLines, IReadOnlyDictionary<CrossKey,CrossSnapshot> crosses, IEnumerable<LogicalNodeSnapshot> existingNodes, LineSnapshot? replacement = null)
+    public static LogicalNodeViolation? ValidateMap(IEnumerable<LineSnapshot> existingLines, IReadOnlyDictionary<CrossKey,CrossSnapshot> crosses, IEnumerable<LogicalNodeSnapshot> existingNodes, LineSnapshot? replacement = null, Func<IntegerCrossIndex>? geometryFactory = null)
     {
         if (!existingNodes.Any()) return null;
         var nodes=existingNodes.OrderBy(n=>n.Code).ToArray();
         for(var i=0;i<nodes.Length;i++)
             if(ValidateSeparation(nodes[i],nodes.Skip(i+1)) is {} separation)return separation;
         var lines = existingLines.Where(l => l.Code != replacement?.Code).Concat(replacement is null ? [] : new[] { replacement }).OrderBy(l => l.Code).ToArray();
+        var geometry=new Lazy<IntegerCrossIndex>(()=>replacement is null&&geometryFactory is not null?geometryFactory():new(lines));
         foreach (var node in existingNodes.OrderBy(n => n.Code))
-            if (ValidateArea(node, lines, crosses, allowMissingCross: true) is { } violation) return violation;
+            if (ValidateArea(node, lines, crosses, allowMissingCross: true, geometry) is { } violation) return violation;
         return null;
     }
 
@@ -46,7 +48,7 @@ public static class LogicalNodeGeometryRules
         return null;
     }
 
-    private static LogicalNodeViolation? ValidateArea(LogicalNodeSnapshot square, LineSnapshot[] lines, IReadOnlyDictionary<CrossKey,CrossSnapshot> crosses, bool allowMissingCross)
+    private static LogicalNodeViolation? ValidateArea(LogicalNodeSnapshot square, LineSnapshot[] lines, IReadOnlyDictionary<CrossKey,CrossSnapshot> crosses, bool allowMissingCross, Lazy<IntegerCrossIndex> geometry)
     {
         foreach (var line in lines)
             foreach (var point in line.Nodes)
@@ -56,7 +58,7 @@ public static class LogicalNodeGeometryRules
             for (var i = 0; i < line.Nodes.Length - 1; i++)
                 if (DiagonalEntersInterior(square, line.Nodes[i], line.Nodes[i + 1]))
                     return new("DiagonalInsideLogicalNode", $"线路 {line.Code} 的线段序号 {i} 斜穿逻辑节点 {square.Code} 的正方形内部。只有横线、竖线可以穿过 LN；45° 斜线仅允许擦过顶点。");
-        foreach (var key in Intersections(lines))
+        foreach (var key in geometry.Value.Intersections)
         {
             if (!square.Contains(key.Position)) continue;
             if (!crosses.TryGetValue(key, out var cross))
@@ -87,19 +89,5 @@ public static class LogicalNodeGeometryRules
         }
         return Clip(start.X, dx, square.Left, square.Right) && Clip(start.Y, dy, square.Bottom, square.Top);
     }
-
-    private static IEnumerable<CrossKey> Intersections(LineSnapshot[] lines)
-    {
-        for (var i = 0; i < lines.Length; i++)
-        for (var j = i + 1; j < lines.Length; j++)
-        {
-            var seen = new HashSet<CrossPosition>();
-            for (var a = 0; a < lines[i].Nodes.Length - 1; a++)
-            for (var b = 0; b < lines[j].Nodes.Length - 1; b++)
-                if (LineGeometry.TryIntersection(lines[i].Nodes[a], lines[i].Nodes[a + 1], lines[j].Nodes[b], lines[j].Nodes[b + 1], out var position) && seen.Add(position))
-                    yield return CrossKey.Create(lines[i].Code, lines[j].Code, position);
-        }
-    }
-
 
 }

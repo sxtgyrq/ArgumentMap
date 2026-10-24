@@ -24,15 +24,15 @@ public sealed class LogicalNodeRelationTests
     {var result=new LogicalNodeService(repository).Create(new("owner",x,y,8,new(){Value=value,LogicLanguage=logic,Info="关系说明"}));Assert.IsTrue(result.Success,result.Message);return result.Data!;}
 
     [TestMethod]
-    public void AllSevenSymbolsRepeatWithoutGlobalCountLimit_LogicAlwaysMatchesValue_AndDefaultIsEquality()
+    public void AllEightSymbolsRepeatWithoutGlobalCountLimit_LogicIsGeneratedFromValue_AndDefaultIsEquality()
     {
         var map=new TestMap();var service=new LogicalNodeService(map.Repository);
-        for(var i=0;i<350;i++)Add(map.Repository,20.5m+(i%30)*20,20.5m+(i/30)*20,new[]{"=","→","↔","⊇","⊋","⊆","⊊"}[i%7],"P");
-        var all=service.GetAll().Data!;Assert.AreEqual(350,all.Length);foreach(var value in new[]{"=","→","↔","⊇","⊋","⊆","⊊"})Assert.AreEqual(50,all.Count(n=>n.Properties.Value==value));Assert.IsTrue(all.All(n=>n.Properties.LogicLanguage==n.Properties.Value));
+        for(var i=0;i<400;i++)Add(map.Repository,20.5m+(i%30)*20,20.5m+(i/30)*20,new[]{"=","→","↔","¬","⊇","⊋","⊆","⊊"}[i%8],"P");
+        var all=service.GetAll().Data!;Assert.AreEqual(400,all.Length);foreach(var value in new[]{"=","→","↔","¬","⊇","⊋","⊆","⊊"})Assert.AreEqual(50,all.Count(n=>n.Properties.Value==value));Assert.IsTrue(all.All(n=>n.Properties.LogicLanguage==LogicalNodeRelationRules.Expression(n.Properties.Value)));
         var created=service.Create(new("owner",800.5m,800.5m,8,new()));Assert.IsTrue(created.Success,created.Message);Assert.AreEqual("=",created.Data!.Properties.Value);Assert.AreEqual("=",created.Data.Properties.LogicLanguage);
     }
 
-    [TestMethod,DataRow(""),DataRow("等同"),DataRow("蕴含"),DataRow("True"),DataRow("False"),DataRow("=="),DataRow("->"),DataRow(" = "),DataRow("⊃"),DataRow("⊂"),DataRow("∈"),DataRow("⊆ "),DataRow("包含"),DataRow("<->"),DataRow("⇔"),DataRow("↔ ")]
+    [TestMethod,DataRow(""),DataRow("等同"),DataRow("蕴含"),DataRow("True"),DataRow("False"),DataRow("=="),DataRow("->"),DataRow(" = "),DataRow("⊃"),DataRow("⊂"),DataRow("∈"),DataRow("⊆ "),DataRow("包含"),DataRow("<->"),DataRow("⇔"),DataRow("↔ "),DataRow("!"),DataRow("NOT"),DataRow("非"),DataRow("¬P"),DataRow("¬(?)"),DataRow(" ¬ ")]
     public void CreateUpdateAndDalRejectAnyOtherValue_WithoutPartialChanges(string value)
     {
         var map=new TestMap();var node=Add(map.Repository);var service=new LogicalNodeService(map.Repository);var before=map.Snapshot();
@@ -66,19 +66,19 @@ public sealed class LogicalNodeRelationTests
         var before=map.Snapshot();var result=new LogicalNodeService(map.Repository).Create(new("owner",x,y,8,new()));Assert.IsFalse(result.Success);Assert.AreEqual(before,map.Snapshot());
     }
 
-    [TestMethod,DataRow("="),DataRow("→"),DataRow("⊇"),DataRow("⊋"),DataRow("⊆"),DataRow("⊊"),DataRow("↔")]
+    [TestMethod,DataRow("="),DataRow("→"),DataRow("⊇"),DataRow("⊋"),DataRow("⊆"),DataRow("⊊"),DataRow("↔"),DataRow("¬")]
     public void ImportPreviewAndCommitFillMatchingLogic_AndRejectInvalidWholeBatch(string value)
     {
         var map=new TestMap();var service=new FlowDiagramService(map.Repository);
         var document=new JsonObject{["format"]="argumentmap.flow/1",["origin"]="relation",["ln"]=new JsonArray(new JsonObject{["id"]="relation",["at"]=new JsonArray(.5m,.5m),["size"]=8,["value"]=value}),["roads"]=new JsonArray(),["crosses"]=new JsonArray()};
         var request=new FlowDiagramRequest("owner",document.ToJsonString(),100.5m,100.5m);var before=map.Snapshot();var preview=service.Preview(request);Assert.IsTrue(preview.Success,preview.Message);Assert.AreEqual(before,map.Snapshot());
-        Assert.AreEqual(value,preview.Data!.Added.LogicalNodes.Single().Properties.LogicLanguage);Assert.IsTrue(service.Import(request).Success);Assert.IsTrue(service.Import(request with{X=150.5m}).Success);Assert.AreEqual(2,new LogicalNodeService(map.Repository).GetAll().Data!.Length);
+        Assert.AreEqual(LogicalNodeRelationRules.Expression(value),preview.Data!.Added.LogicalNodes.Single().Properties.LogicLanguage);Assert.IsTrue(service.Import(request).Success);Assert.IsTrue(service.Import(request with{X=150.5m}).Success);Assert.AreEqual(2,new LogicalNodeService(map.Repository).GetAll().Data!.Length);
         before=map.Snapshot();document["ln"]![0]!["value"]="蕴含";Assert.IsFalse(service.Import(request with{Text=document.ToJsonString(),X=200.5m}).Success);Assert.AreEqual(before,map.Snapshot());
         document["ln"]![0]!["value"]=value;document["ln"]![0]!["logic"]=null;Assert.IsFalse(FlowDiagramLanguage.Parse(document.ToJsonString()).Success);
     }
 
-    [STATestMethod,DataRow("⊊"),DataRow("↔")]
-    public void F5ContinuousCreation_DefaultEquality_AndEditHasExactlySevenOptionsWithoutEndpointSelectors(string chosenValue)
+    [STATestMethod,DataRow("⊊"),DataRow("↔"),DataRow("¬")]
+    public void F5ContinuousCreation_DefaultEquality_AndEditHasExactlyEightOptionsWithoutEndpointSelectors(string chosenValue)
     {
         var chooser=new LogicalNodeSizeWindow(false);int selected=0;chooser.SizeSelected+=size=>selected=size;
         ((Button)chooser.FindName("Size8Button")).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));Assert.AreEqual(8,selected);
@@ -87,11 +87,26 @@ public sealed class LogicalNodeRelationTests
         var node=new LogicalNodeService(handler.Repository).GetAll().Data!.First();var window=new LogicalNodeWindow(client,"owner",new(),node);
         try
         {
-            var values=(ComboBox)window.FindName("RelationValueInput");Assert.AreEqual(Visibility.Visible,values.Visibility);CollectionAssert.AreEqual(new[]{"=","→","↔","⊇","⊋","⊆","⊊"},values.Items.OfType<ComboBoxItem>().Select(i=>(string)i.Tag).ToArray());
+            var values=(ComboBox)window.FindName("RelationValueInput");Assert.AreEqual(Visibility.Visible,values.Visibility);CollectionAssert.AreEqual(new[]{"=","→","↔","¬","⊇","⊋","⊆","⊊"},values.Items.OfType<ComboBoxItem>().Select(i=>(string)i.Tag).ToArray());
             Assert.AreEqual(Visibility.Collapsed,((TextBox)window.FindName("ValueInput")).Visibility);Assert.AreEqual(Visibility.Collapsed,((ComboBox)window.FindName("BranchValueInput")).Visibility);Assert.IsFalse(((StackPanel)window.FindName("GeometryPanel")).IsEnabled);
             var logic=(TextBox)window.FindName("LogicInput");Assert.IsTrue(logic.IsReadOnly);Assert.AreEqual("=",logic.Text);
-            foreach(var value in new[]{"=","→","↔","⊇","⊋","⊆","⊊"}){values.SelectedValue=value;Assert.AreEqual(value,logic.Text);}values.SelectedValue=chosenValue;((Button)window.FindName("SaveButton")).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-            var saved=new LogicalNodeService(handler.Repository).GetAll().Data!.Single(n=>n.Code==node.Code);Assert.AreEqual(chosenValue,saved.Properties.Value);Assert.AreEqual(chosenValue,saved.Properties.LogicLanguage);
+            foreach(var value in new[]{"=","→","↔","¬","⊇","⊋","⊆","⊊"}){values.SelectedValue=value;Assert.AreEqual(LogicalNodeRelationRules.Expression(value),logic.Text);}values.SelectedValue=chosenValue;((Button)window.FindName("SaveButton")).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            var saved=new LogicalNodeService(handler.Repository).GetAll().Data!.Single(n=>n.Code==node.Code);Assert.AreEqual(chosenValue,saved.Properties.Value);Assert.AreEqual(LogicalNodeRelationRules.Expression(chosenValue),saved.Properties.LogicLanguage);
+            if(chosenValue=="¬")
+            {
+                var reopened=new LogicalNodeWindow(client,"owner",new(),saved){WindowStartupLocation=WindowStartupLocation.Manual,Left=-10000,Top=-10000,ShowInTaskbar=false,ShowActivated=false};
+                try
+                {
+                    reopened.Show();reopened.UpdateLayout();
+                    Assert.AreEqual("¬",((ComboBox)reopened.FindName("RelationValueInput")).SelectedValue);
+                    Assert.AreEqual("¬(?)",((TextBox)reopened.FindName("LogicInput")).Text);
+                    Assert.IsTrue(((TextBox)reopened.FindName("LogicInput")).IsReadOnly);
+                    var bitmap=new RenderTargetBitmap((int)reopened.ActualWidth,(int)reopened.ActualHeight,96,96,PixelFormats.Pbgra32);bitmap.Render(reopened);
+                    var path=Path.Combine(ProjectPaths.Root,".artifacts","renders","ln8-not-editor.png");Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+                    var png=new PngBitmapEncoder();png.Frames.Add(BitmapFrame.Create(bitmap));using(var stream=File.Create(path))png.Save(stream);TestContext.AddResultFile(path);
+                }
+                finally{reopened.Close();}
+            }
         }
         finally{window.Close();}
     }
@@ -109,9 +124,10 @@ public sealed class LogicalNodeRelationTests
         var view=new CoordinateMapView();view.Measure(new Size(1100,700));view.Arrange(new Rect(0,0,1100,700));view.UpdateLayout();view.ResetView();view.ZoomAtCenter(12);view.UpdateLayout();view.SetShowLogicalNodeLabels(true);
         var six=new LogicalNodeSnapshot("AAAAAAAAAA","owner",0,249980.5m,250000.5m,6,new(){Value="LN6 判断",LogicLanguage="P"});
         var equal=new LogicalNodeSnapshot("BBBBBBBBBB","owner",0,250000.5m,250000.5m,8,new(){Value="=",LogicLanguage="="});var implication=equal with{Code="CCCCCCCCCC",X=250020.5m,Properties=new(){Value="→",LogicLanguage="→"}};
-        var editor=(LogicalNodeEditor)typeof(CoordinateMapView).GetField("logicalNodes",BindingFlags.NonPublic|BindingFlags.Instance)!.GetValue(view)!;editor.ReplaceNodes([six,equal,implication]);view.InvalidateVisual();view.UpdateLayout();
-        foreach(var n in new[]{six,equal,implication}){var at=(Point)typeof(CoordinateMapView).GetMethod("ToScreen",BindingFlags.NonPublic|BindingFlags.Instance)!.Invoke(view,[new Point((double)n.X,(double)n.Y)])!;Assert.IsTrue(new Rect(view.RenderSize).Contains(at),"The rendered nodes must be visible.");}
-        Save(view,"ln8-map.png");Assert.IsTrue(view.BeginFlowDiagramImport());view.ShowFlowDiagramPreview(new([], [equal with{Y=249980.5m},implication with{Y=249980.5m}],[]));view.UpdateLayout();Save(view,"ln8-import-preview.png");
+        var negation=equal with{Code="DDDDDDDDDD",X=250035.5m,Properties=new(){Value="¬",LogicLanguage="¬(?)"}};
+        var editor=(LogicalNodeEditor)typeof(CoordinateMapView).GetField("logicalNodes",BindingFlags.NonPublic|BindingFlags.Instance)!.GetValue(view)!;editor.ReplaceNodes([six,equal,implication,negation]);view.InvalidateVisual();view.UpdateLayout();
+        foreach(var n in new[]{six,equal,implication,negation}){var at=(Point)typeof(CoordinateMapView).GetMethod("ToScreen",BindingFlags.NonPublic|BindingFlags.Instance)!.Invoke(view,[new Point((double)n.X,(double)n.Y)])!;Assert.IsTrue(new Rect(view.RenderSize).Contains(at),"The rendered nodes must be visible.");}
+        Save(view,"ln8-map.png");Assert.IsTrue(view.BeginFlowDiagramImport());view.ShowFlowDiagramPreview(new([], [equal with{Y=249980.5m},implication with{Y=249980.5m},negation with{Y=249980.5m}],[]));view.UpdateLayout();Save(view,"ln8-import-preview.png");
         void Save(FrameworkElement element,string file)
         {
             var bitmap=new RenderTargetBitmap(1100,700,96,96,PixelFormats.Pbgra32);bitmap.Render(element);var path=Path.Combine(ProjectPaths.Root,".artifacts","renders",file);Directory.CreateDirectory(Path.GetDirectoryName(path)!);var png=new PngBitmapEncoder();png.Frames.Add(BitmapFrame.Create(bitmap));using(var stream=File.Create(path))png.Save(stream);TestContext.AddResultFile(path);

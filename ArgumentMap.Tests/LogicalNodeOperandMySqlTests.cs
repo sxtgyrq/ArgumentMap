@@ -29,7 +29,7 @@ public sealed class LogicalNodeOperandMySqlTests
             try{Assert.ThrowsExactly<MySqlException>(()=>new MySqlLineRepository(settings));Assert.AreEqual(3001,Version(settings));Assert.ThrowsExactly<InvalidOperationException>(()=>repo.Transaction(s=>true));}
             finally{Sql(settings,"DROP TRIGGER FailOperandPublish");}
         }
-        var upgraded=new MySqlLineRepository(settings);Assert.AreEqual(31,Version(settings));Assert.AreEqual(before,Snapshot(upgraded));Assert.IsTrue(upgraded.Transaction(s=>s.LogicalNodes.Values.All(n=>n.Properties.OperandKind=="Custom")));
+        var upgraded=new MySqlLineRepository(settings);Assert.AreEqual(MySqlLineRepository.CurrentSchemaVersion,Version(settings));Assert.AreEqual(before,Snapshot(upgraded));Assert.IsTrue(upgraded.Transaction(s=>s.LogicalNodes.Values.All(n=>n.Properties.OperandKind=="Custom")));
         var undo=new MapUndoService(upgraded).Undo("owner");Assert.IsTrue(undo.Success,undo.Message);Assert.AreEqual(50.5m,undo.Data!.Map.LogicalNodes.Single(n=>n.Code==upper.Code).X);
         Assert.AreEqual("P",undo.Data.Map.LogicalNodes.Single(n=>n.Code==upper.Code).Properties.LogicLanguage);Assert.AreEqual("p",undo.Data.Map.LogicalNodes.Single(n=>n.Code==lower.Code).Properties.LogicLanguage);
         new MySqlLineRepository(settings);await Task.CompletedTask;

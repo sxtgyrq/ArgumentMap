@@ -26,7 +26,7 @@ public sealed class LogicalNodeRequiredLogicMySqlTests
     private static void Legacy20(MySqlSettings settings)
     {
         new MySqlLineRepository(settings);
-        Sql(settings,"ALTER TABLE LogicalNodes DROP CHECK CK_LN_Logic6Required, DROP CHECK CK_LN_Logic12Required, DROP INDEX UQ_LN_Logic6, DROP COLUMN Logic6Key; UPDATE MapMetadata SET SchemaVersion=20 WHERE Id=1");
+        Sql(settings,"ALTER TABLE LogicalNodes DROP CHECK CK_LN_Logic6Required, DROP CHECK CK_LN_Logic12Required, DROP INDEX UQ_LN_Logic6, DROP COLUMN Logic6Key, MODIFY COLUMN LogicLanguage VARCHAR(255) NOT NULL DEFAULT ''; UPDATE MapMetadata SET SchemaVersion=20 WHERE Id=1");
         Sql(settings,"""
             INSERT INTO LogicalNodes (Code,Owner,Version,X,Y,SideLength,`Value`,Info,LogicLanguage) VALUES
             ('AAAAAAAAAA','owner',1,50.5,50.5,6,'repeat','small info',''),

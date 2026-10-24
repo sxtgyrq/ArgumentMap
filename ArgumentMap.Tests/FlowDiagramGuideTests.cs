@@ -168,10 +168,12 @@ public sealed class FlowDiagramGuideTests
         var guide=Offscreen(new FlowDiagramGuideWindow(_=>{}));
         try
         {
-            guide.Show();guide.UpdateLayout();Save(guide,"flow-guide-overview.png");
+            // FlowDocument formatting and BringIntoView can continue below Render priority.
+            // Drain those dispatcher operations before checking offsets or capturing pages.
+            guide.Show();guide.Dispatcher.Invoke(()=>{},DispatcherPriority.ContextIdle);guide.UpdateLayout();Save(guide,"flow-guide-overview.png");
             var list=(ListBox)guide.FindName("ContentsList");Assert.IsTrue(list.Items.Count>=15);var sections=list.Items.Cast<FlowDiagramGuideWindow.GuideSection>().ToArray();list.SelectedItem=sections.Single(s=>s.Title=="字段");
-            guide.Dispatcher.Invoke(()=>{},DispatcherPriority.Render);guide.UpdateLayout();Assert.IsTrue(((RichTextBox)guide.FindName("GuideReader")).VerticalOffset>0);Save(guide,"flow-guide-fields.png");
-            guide.Width=780;guide.Height=580;guide.UpdateLayout();list.SelectedItem=sections.Single(s=>s.Title=="最小可用示例");guide.Dispatcher.Invoke(()=>{},DispatcherPriority.Render);guide.UpdateLayout();Save(guide,"flow-guide-small.png");
+            guide.Dispatcher.Invoke(()=>{},DispatcherPriority.ContextIdle);guide.UpdateLayout();Assert.IsTrue(((RichTextBox)guide.FindName("GuideReader")).VerticalOffset>0);Save(guide,"flow-guide-fields.png");
+            guide.Width=780;guide.Height=580;guide.UpdateLayout();list.SelectedItem=sections.Single(s=>s.Title=="最小可用示例");guide.Dispatcher.Invoke(()=>{},DispatcherPriority.ContextIdle);guide.UpdateLayout();Save(guide,"flow-guide-small.png");
         }
         finally{guide.Close();}
     }

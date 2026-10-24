@@ -17,12 +17,13 @@ public sealed class MapAreaDeleteTests
         cross=map.Crosses.Edit(new(cross.Key,"owner",cross.Version,CrossState.Disconnected)).Data!;var outside=MapAreaMoveTests.Node(map,250.5m,250.5m);
         map.Repository.Transaction(s=>{s.StaleCrosses.Add(cross.Key);s.DirtyLines.Add(other.Code);s.PendingSegments.Add((other.Code,0));var p=s.LogicalNodePositions.Values.First(p=>p.LogicalNodeCode==outside.Code);s.LogicalNodePositions[p.Key]=p with{IsChanged=true};return 0;});
         var selected=MapAreaMoveTests.Select(map);var before=map.Repository.Transaction(s=>s.Lines[other.Code]);var result=Delete(map,selected);Assert.IsTrue(result.Success,result.Message);
-        Assert.AreEqual(2,result.Data!.Lines.Length);Assert.AreEqual(1,result.Data.LogicalNodes.Length);Assert.AreEqual(cross,result.Data.Crosses.Single());
+        Assert.AreEqual(2,result.Data!.Lines.Length);Assert.AreEqual(1,result.Data.LogicalNodes.Length);Assert.AreEqual(0,result.Data.Crosses.Length);
         map.Repository.Transaction(s=>
         {
             Assert.IsTrue(selected.Lines.All(l=>!s.Lines.ContainsKey(l.Code)));Assert.IsTrue(selected.LogicalNodes.All(n=>!s.LogicalNodes.ContainsKey(n.Code)));
             var kept=s.Lines[other.Code];Assert.AreEqual(before.Version,kept.Version);Assert.AreEqual(before.Owner,kept.Owner);Assert.AreEqual(before.Properties,kept.Properties);CollectionAssert.AreEqual(before.Nodes,kept.Nodes);
             Assert.AreEqual(2,s.LogicalNodePositions.Count);Assert.IsTrue(s.LogicalNodePositions.Values.Any(p=>p.IsChanged));
+            Assert.AreEqual(cross,s.Crosses[cross.Key]);
             CollectionAssert.AreEquivalent(new[]{other.Code},s.DirtyLines.ToArray());Assert.IsTrue(s.PendingSegments.SetEquals(new[]{(other.Code,0)}));Assert.IsTrue(s.StaleCrosses.SetEquals(new[]{cross.Key}));return 0;
         });
         Assert.IsTrue(new LogicalNodeService(map.Repository).Create(new("owner",50.5m,50.5m,18,new())).Success,"Deleting the start LN must free the unique start slot.");

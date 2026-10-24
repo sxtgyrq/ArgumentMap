@@ -8,7 +8,7 @@ namespace ArgumentMap.Storage;
 /// <summary>Load, validate and commit under one InnoDB transaction and a shared metadata row lock.</summary>
 public sealed partial class MySqlLineRepository : ILineRepository
 {
-    public const int CurrentSchemaVersion = 31;
+    public const int CurrentSchemaVersion = 38;
     private readonly string connectionString;
     public string DatabaseName { get; }
 
@@ -43,6 +43,20 @@ public sealed partial class MySqlLineRepository : ILineRepository
         using var version = database.CreateCommand();
         version.CommandText = "SELECT SchemaVersion FROM MapMetadata WHERE Id=1";
         var currentVersion = Convert.ToInt32(version.ExecuteScalar());
+        if(currentVersion==CrossIntegerPending)
+        {UpgradeCrossIntegerCoordinates(database);currentVersion=38;}
+        // Reject damage before derived-table recovery can replay an older chain.
+        if(currentVersion==38)VerifyCrossIntegerCoordinates(database);
+        if(currentVersion==LogicalNodeNegationLogicPending)
+        {UpgradeLogicalNodeNegationLogic(database);currentVersion=37;}
+        if(currentVersion==LogicalNodeNegationPending)
+        {UpgradeLogicalNodeNegation(database);currentVersion=36;}
+        // Verify the current relation contract before any derived-table recovery can
+        // replay older migrations and accidentally hide a damaged constraint.
+        if(currentVersion is 36 or 37 or 38)
+        {UpgradeLogicalNodeNegation(database);UpgradeLogicalNodeNegationLogic(database);}
+        if(currentVersion is LogicalNodeInstanceAttributesPending or LogicalNodeInstanceAttributeSetsPending or LogicalNodeInstanceAliasPending or LogicalNodeInstanceConjunctionPending)
+        {UpgradeLogicalNodeInstanceAttributes(database);EnsureDefaultSpeed(database);return;}
         if(currentVersion==LogicalNodeOperandPending)
         {UpgradeLogicalNodeOperandKind(database);EnsureDefaultSpeed(database);return;}
         if(currentVersion==LogicalNodeEquivalencePending)
@@ -245,7 +259,7 @@ public sealed partial class MySqlLineRepository : ILineRepository
             upgrade.ExecuteNonQuery();
             currentVersion = 8;
         }
-        else if (currentVersion is not (8 or 9 or 10 or 11 or 12 or 13 or 14 or 15 or 16 or 17 or 18 or 19 or 20 or 21 or 22 or 23 or 24 or 25 or 26 or 27 or 28 or 29 or 30 or 31)) throw new InvalidOperationException("数据库架构版本不兼容。");
+        else if (currentVersion is not (8 or 9 or 10 or 11 or 12 or 13 or 14 or 15 or 16 or 17 or 18 or 19 or 20 or 21 or 22 or 23 or 24 or 25 or 26 or 27 or 28 or 29 or 30 or 31 or 32 or 33 or 34 or 35 or 36 or 37 or 38)) throw new InvalidOperationException("数据库架构版本不兼容。");
         if (currentVersion < 9) UpgradeCodeSchema(database);
         else DropMigrationTables(database, "_NumericV8");
         UpgradeCrossDirections(database);
@@ -287,6 +301,10 @@ public sealed partial class MySqlLineRepository : ILineRepository
     {
         InitializeUndoHistory(database);
         UpgradeLogicalNodeOperandKind(database);
+        UpgradeLogicalNodeInstanceAttributes(database);
+        UpgradeLogicalNodeNegation(database);
+        UpgradeLogicalNodeNegationLogic(database);
+        UpgradeCrossIntegerCoordinates(database);
         using var check=database.CreateCommand();
         check.CommandText="SELECT COLUMN_DEFAULT FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=@db AND TABLE_NAME='Lines' AND COLUMN_NAME='Speed'";
         check.Parameters.AddWithValue("@db",DatabaseName);
@@ -363,6 +381,7 @@ public sealed partial class MySqlLineRepository : ILineRepository
             var previousLogicalNodes = new Dictionary<string, LogicalNodeSnapshot>(state.LogicalNodes, StringComparer.Ordinal);
             var result = operation(state);
             if (result is IServiceResult { Success: false }) { transaction.Rollback(); return result; }
+            CrossCoordinateRules.EnsureValid(state.Crosses.Values);
             LogicalNodeTextRules.EnsureChangesValid(previousLogicalNodes.Values,state.LogicalNodes.Values);
             LogicalNodeCoordinateRules.EnsureValid(state.LogicalNodes.Values);
             LogicalNodeValueUniqueness.EnsureValid(state.LogicalNodes.Values);
@@ -459,7 +478,7 @@ public sealed partial class MySqlLineRepository : ILineRepository
         using (var reader = command.ExecuteReader())
             while (reader.Read())
             {
-                var key = new CrossKey(reader.GetString(0), reader.GetString(1), new(checked((int)(reader.GetDecimal(2) * 2)), checked((int)(reader.GetDecimal(3) * 2))));
+                var key = new CrossKey(reader.GetString(0), reader.GetString(1), new(checked(reader.GetInt32(2) * 2), checked(reader.GetInt32(3) * 2)));
                 state.Crosses.Add(key, new(key, reader.GetInt32(4), reader.GetInt32(5), reader.GetInt64(6), reader.GetInt64(7), (CrossState)reader.GetInt32(8), reader.GetInt64(9), ReadPercent(reader, 10), ReadPercent(reader, 11)));
                 if (reader.GetInt32(12) < 0) state.StaleCrosses.Add(key);
             }

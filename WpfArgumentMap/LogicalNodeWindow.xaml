@@ -17,7 +17,7 @@
       <Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="14"/><ColumnDefinition/></Grid.ColumnDefinitions>
        <StackPanel><TextBlock Text="中心 X"/><TextBox x:Name="XInput"/></StackPanel><StackPanel Grid.Column="2"><TextBlock Text="中心 Y"/><TextBox x:Name="YInput"/></StackPanel>
       </Grid>
-      <TextBlock Text="边长"/><ComboBox x:Name="SizeInput" SelectedValuePath="Tag"><ComboBoxItem Content="4 · 是／否分支" Tag="4"/><ComboBoxItem Content="6" Tag="6"/><ComboBoxItem Content="8 · 等同／蕴含／等价／集合关系" Tag="8"/><ComboBoxItem Content="10 · 实例" Tag="10"/><ComboBoxItem Content="12" Tag="12"/><ComboBoxItem Content="18 · 开始（全图唯一）" Tag="18"/></ComboBox>
+      <TextBlock Text="边长"/><ComboBox x:Name="SizeInput" SelectedValuePath="Tag"><ComboBoxItem Content="4 · 是／否分支" Tag="4"/><ComboBoxItem Content="6" Tag="6"/><ComboBoxItem Content="8 · 等同／蕴含／等价／非／集合关系" Tag="8"/><ComboBoxItem Content="10 · 实例" Tag="10"/><ComboBoxItem Content="12" Tag="12"/><ComboBoxItem Content="18 · 开始（全图唯一）" Tag="18"/></ComboBox>
       <TextBlock Text="中心为整数＋0.5；边和顶点全部在 0–500000 内。LN 之间不能重叠，边和顶点也不能接触。仅横线、竖线可穿过；45° 斜线只能擦过顶点。范围内禁止线路节点，Cross 必须是不连通。" Foreground="#667085" TextWrapping="Wrap"/>
      </StackPanel>
     </Border>
@@ -34,8 +34,8 @@
       <ComboBox x:Name="BranchValueInput" Visibility="Collapsed" SelectedValuePath="Tag" ToolTip="LN4 的值只能为 True 或 False；逻辑语言可留空，True 对应 P，False 对应 ¬P">
        <ComboBoxItem Content="True" Tag="True"/><ComboBoxItem Content="False" Tag="False"/>
       </ComboBox>
-      <ComboBox x:Name="RelationValueInput" Visibility="Collapsed" SelectedValuePath="Tag" ToolTip="LN8：= 表示两个 LN12 所指同一；→ 表示前提 LN6 蕴含结论 LN6；↔ 表示两个 LN6 命题逻辑等价（互相蕴含）。集合关系用于 LN12：⊇ 包含、⊆ 包含于（允许相等）；⊋ 真包含、⊊ 真包含于（不相等）。按左右顺序读取，自由放置，不自动检查端点、推断或改变 Cross 通行。">
-       <ComboBoxItem Content="= · 等同" Tag="="/><ComboBoxItem Content="→ · 蕴含" Tag="→"/><ComboBoxItem Content="↔ · 等价" Tag="↔"/>
+      <ComboBox x:Name="RelationValueInput" Visibility="Collapsed" SelectedValuePath="Tag" ToolTip="LN8：= 表示两个 LN12 所指同一；→ 表示前提 LN6 蕴含结论 LN6；↔ 表示两个 LN6 命题逻辑等价（互相蕴含）；¬ 表示非（NOT），逻辑语言自动生成为 ¬(?)，? 表示尚未指定的输入命题。按输入 P → ¬ → 输出 Q 绘制，含义为 Q ↔ ¬P，只有一个输入命题。集合关系用于 LN12：⊇ 包含、⊆ 包含于（允许相等）；⊋ 真包含、⊊ 真包含于（不相等）。关系按左右顺序读取，自由放置，不自动检查端点、计算真假或改变 Cross 通行。">
+       <ComboBoxItem Content="= · 等同" Tag="="/><ComboBoxItem Content="→ · 蕴含" Tag="→"/><ComboBoxItem Content="↔ · 等价" Tag="↔"/><ComboBoxItem Content="¬ · 非（NOT）" Tag="¬"/>
        <ComboBoxItem Content="⊇ · 包含（允许相等）" Tag="⊇"/><ComboBoxItem Content="⊋ · 真包含（不相等）" Tag="⊋"/>
        <ComboBoxItem Content="⊆ · 包含于（允许相等）" Tag="⊆"/><ComboBoxItem Content="⊊ · 真包含于（不相等）" Tag="⊊"/>
       </ComboBox>

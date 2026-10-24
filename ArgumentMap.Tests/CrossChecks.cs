@@ -125,9 +125,8 @@ internal static class CrossChecks
         var halfLines = new LineSaveService(halfRepo);
         SaveNew(halfRepo, (0, 0), (1, 1));
         SaveNew(halfRepo, (0, 1), (1, 0));
-        Check(new CrossService(halfRepo).GetAll().Data!.Single().Key.Position == new CrossPosition(1, 1), "Half-integer crossing stored with integer doubled coordinates");
-        Check(new CrossService(halfRepo).GetAll().Data!.Single().Percent1 == 0.5 && new CrossService(halfRepo).GetAll().Data!.Single().Percent2 == 0.5,
-            "Half-integer intersection positions are both one half");
+        Check(new CrossService(halfRepo).GetAll().Data!.Length == 0, "Half-integer geometric crossing creates no Cross");
+        Check(!CrossKey.Create("AAAAAAAAAA","BBBBBBBBBB",new(1,1)).IsValid, "Half-integer positions are not valid Cross keys");
         var selfRepo = new InMemoryLineRepository();
         SaveNew(selfRepo, (100, 110), (120, 110), (120, 120), (110, 120), (110, 100));
         Check(new CrossService(selfRepo).GetAll().Data!.Length == 0, "Cross records join distinct lines, as in source workflow");

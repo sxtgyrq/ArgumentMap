@@ -14,7 +14,7 @@ public sealed class LogicalNodeSingleLineTests
     public void CreateAndUpdateRejectLineBreaksBeforeTypeNormalization_InfoStillMultiline(int size)
     {
         var map=new TestMap();var service=new LogicalNodeService(map.Repository);if(size==10)LogicalNodeInstanceTests.Parent(map.Repository);
-        var p=new LogicalNodeProperties{Value=size switch{4=>"False",8=>"↔",10=>"people",_=>"NODE"},LogicLanguage=size==4?"":"P",Info="一\r\n二"};
+        var p=new LogicalNodeProperties{Value=size switch{4=>"False",8=>"↔",10=>"people(id=1)",_=>"NODE"},LogicLanguage=size==4?"":"P",Info="一\r\n二"};
         var valid=service.Create(new("owner",100.5m,100.5m,size,p));Assert.IsTrue(valid.Success,valid.Message);var node=valid.Data!;Assert.AreEqual(p.Info,node.Properties.Info);
         var before=map.Snapshot();
         foreach(var separator in new[]{"\r","\n","\r\n","\v","\f","\u0085","\u2028","\u2029"})
