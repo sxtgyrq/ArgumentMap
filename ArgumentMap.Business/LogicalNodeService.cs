@@ -14,7 +14,15 @@ public sealed class LogicalNodeService(ILineRepository repository)
         if (string.IsNullOrWhiteSpace(request.Owner)) return Fail("InvalidOwner", "缺少逻辑节点所属用户。");
         if (LogicalNodeRules.ValidateShape(request.X, request.Y, request.SideLength) is { } shape) return Fail(shape.Code, shape.Message);
         var p = request.Properties;
-        if (!ValidProperties(p)) return Fail("InvalidLogicalNodeProperties", "值最多 32 个字符，说明和逻辑语言各最多 255 个字符，不能为 null。");
+        if (!ValidProperties(p,request.SideLength)) return Fail("InvalidLogicalNodeProperties", "LN10 值最多 220 字符，其他 LN 的值最多 32 字符；LN10 逻辑语言最多 4096 字符，其他 LN 逻辑语言及所有说明最多 255 字符，不能为 null。");
+        var code = LineCode.Generate();
+        while (state.LogicalNodes.ContainsKey(code)) code = LineCode.Generate();
+        if(request.InstanceParentCode is not null)
+        {
+            if(request.SideLength!=10||!state.LogicalNodes.TryGetValue(request.InstanceParentCode,out var parent)||!LogicalNodeInstanceRules.CanInstantiate(parent))
+                return Fail("InstanceParentNotFound","所选 LN12 已不存在或不能创建实例，请刷新后重新选择。");
+            p=p with{Value=LogicalNodeInstanceRules.DefaultValue(parent.Properties.Value,code)};
+        }
         if(LogicalNodeTextRules.HasLineBreak(p))return Fail(LogicalNodeTextRules.ErrorCode,LogicalNodeTextRules.Message);
         if(!LogicalNodeOperandRules.Valid(request.SideLength,p.OperandKind))return Fail("InvalidOperandKind","OperandKind 只能为 Class、Instance、Custom，且只适用于 LN6。");
         if(request.SideLength==6)p=p with{LogicLanguage=LogicalNodeOperandRules.Normalize(p.LogicLanguage,p.OperandKind)};
@@ -30,8 +38,6 @@ public sealed class LogicalNodeService(ILineRepository repository)
             var value=LogicalNodeInstanceRules.Normalize(p.Value);
             p=p with{Value=value,LogicLanguage=LogicalNodeInstanceRules.Expression(value)};
         }
-        var code = LineCode.Generate();
-        while (state.LogicalNodes.ContainsKey(code)) code = LineCode.Generate();
         var node = new LogicalNodeSnapshot(code, request.Owner, 0, request.X, request.Y, request.SideLength, p);
         if (LogicalNodeRules.ValidateNew(node, state) is { } area) return Fail(area.Code, area.Message);
         if (node.SideLength == 12)
@@ -62,7 +68,7 @@ public sealed class LogicalNodeService(ILineRepository repository)
         if (node.Version != request.Version) return Fail("VersionConflict", "逻辑节点已发生变化，请刷新后重新打开。");
         if (!CanEdit(state, node, request.Owner)) return Fail("NotOwner", "只有负责人或具备管理全部逻辑节点权限的用户可以修改。");
         var properties=new LogicalNodeProperties{Value=request.Value,Info=request.Info,LogicLanguage=request.LogicLanguage ?? node.Properties.LogicLanguage,OperandKind=request.OperandKind??node.Properties.OperandKind};
-        if (!ValidProperties(properties)) return Fail("InvalidLogicalNodeProperties", "值最多 32 个字符，说明和逻辑语言各最多 255 个字符，不能为 null。");
+        if (!ValidProperties(properties,node.SideLength)) return Fail("InvalidLogicalNodeProperties", "LN10 值最多 220 字符，其他 LN 的值最多 32 字符；LN10 逻辑语言最多 4096 字符，其他 LN 逻辑语言及所有说明最多 255 字符，不能为 null。");
         if(LogicalNodeTextRules.HasLineBreak(properties))return Fail(LogicalNodeTextRules.ErrorCode,LogicalNodeTextRules.Message);
         if(!LogicalNodeOperandRules.Valid(node.SideLength,properties.OperandKind))return Fail("InvalidOperandKind","OperandKind 只能为 Class、Instance、Custom，且只适用于 LN6。");
         if(node.SideLength==6)properties=properties with{LogicLanguage=LogicalNodeOperandRules.Normalize(properties.LogicLanguage,properties.OperandKind)};
@@ -80,7 +86,9 @@ public sealed class LogicalNodeService(ILineRepository repository)
         var instances=node.SideLength==12&&properties.Value!=node.Properties.Value?
             state.LogicalNodes.Values.Where(n=>LogicalNodeInstanceRules.References(n,node)).ToArray():[];
         if(instances.Length>0&&!LogicalNodeInstanceRules.CanInstantiate(changed))
-            return Fail("InvalidInstanceParentValue","该 LN12 仍有关联 LN10 实例，新值必须至少包含一个英文字母（A–Z／a–z），并可与小写实例对应；不能改为全中文、纯数字或符号。请先删除或改属实例。");
+            return Fail("InvalidInstanceParentValue","该 LN12 仍有关联 LN10 实例，新值必须至少包含一个英文字母（A–Z／a–z），不能含括号，并可与小写实例对应。请先删除或改属实例。");
+        if(instances.Any(child=>LogicalNodeInstanceRules.Reparent(child.Properties.Value,properties.Value).Length>LogicalNodeInstanceRules.ValueMaximum))
+            return Fail("InvalidInstanceValue","父类改名后，关联 LN10 的值将超过 220 字符，修改未保存。");
         if (LogicalNodeValueUniqueness.FindConflict(changed, state.LogicalNodes.Values) is { } duplicate)
             return Fail("DuplicateLogicalNodeValue", new DuplicateLogicalNodeValueException(duplicate).Message);
         if(node.SideLength is 6 or 12&&string.IsNullOrWhiteSpace(properties.LogicLanguage))
@@ -97,7 +105,7 @@ public sealed class LogicalNodeService(ILineRepository repository)
         state.LogicalNodes[node.Code] = changed;
         foreach(var child in instances)
         {
-            var value=LogicalNodeInstanceRules.Normalize(properties.Value);
+            var value=LogicalNodeInstanceRules.Reparent(child.Properties.Value,properties.Value);
             state.LogicalNodes[child.Code]=child with{Version=child.Version+1,Properties=child.Properties with{Value=value,LogicLanguage=LogicalNodeInstanceRules.Expression(value)}};
         }
         if(properties.LogicLanguage!=node.Properties.LogicLanguage)
@@ -172,6 +180,6 @@ public sealed class LogicalNodeService(ILineRepository repository)
         foreach(var branch in state.LogicalNodes.Values.Where(n=>n.SideLength==4&&!codes.Contains(n.Code)&&LogicalNodeBranchRules.SourceLogic(n) is {} logic&&sources.Contains(logic)).ToArray())
             state.LogicalNodes[branch.Code]=branch with{Version=branch.Version+1,Properties=branch.Properties with{LogicLanguage=""}};
     }
-    private static bool ValidProperties(LogicalNodeProperties? p) => p is not null && p.Value is not null && p.Info is not null && p.LogicLanguage is not null && p.Value.Length<=32 && p.Info.Length<=255 && p.LogicLanguage.Length<=255;
+    private static bool ValidProperties(LogicalNodeProperties? p,int size) => p is not null && p.Value is not null && p.Info is not null && p.LogicLanguage is not null && p.Value.Length<=(size==10?LogicalNodeInstanceRules.ValueMaximum:32) && p.Info.Length<=255 && p.LogicLanguage.Length<=(size==10?LogicalNodeInstanceRules.LogicMaximum:255);
     private static ServiceResult<LogicalNodeSnapshot> Fail(string code, string message) => ServiceResult<LogicalNodeSnapshot>.Fail(code, message);
 }

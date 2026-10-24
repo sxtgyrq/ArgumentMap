@@ -207,7 +207,7 @@ public sealed class MapAreaMoveTests
         var obsolete=pair.Cross.Key with{Position=new(60,60)};
         map.Repository.Transaction(s=>{s.Crosses.Add(obsolete,pair.Cross with{Key=obsolete});return true;});
         var expected=map.Repository.Transaction(s=>(Stale:s.StaleCrosses.ToHashSet(),Dirty:s.DirtyLines.ToHashSet(),Pending:s.PendingSegments.ToHashSet(),Cross:s.Crosses.Values.Single(c=>c.Key.Contains(external.Code))));
-        var result=Move(map,Select(map));Assert.IsTrue(result.Success,result.Message);Assert.AreEqual(2,result.Data!.Crosses.Length);
+        var result=Move(map,Select(map));Assert.IsTrue(result.Success,result.Message);Assert.AreEqual(1,result.Data!.Crosses.Length);
         map.Repository.Transaction(s=>{Assert.IsTrue(s.StaleCrosses.SetEquals(expected.Stale));Assert.IsTrue(s.DirtyLines.SetEquals(expected.Dirty));Assert.IsTrue(s.PendingSegments.SetEquals(expected.Pending));Assert.AreEqual(expected.Cross,s.Crosses[expected.Cross.Key]);Assert.IsFalse(s.Crosses.ContainsKey(obsolete));return true;});
     }
 }

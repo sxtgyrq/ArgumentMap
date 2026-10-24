@@ -54,7 +54,9 @@ public sealed class BackgroundMapOperationsMySqlTests
             finally{Sql(settings,"DROP TRIGGER FailImportDuringK");}
         }
         var imported=await client.ImportFlowDiagramAsync(FlowDiagramTests.Example,1200.5m,5000.5m);Assert.IsTrue(imported.Success,imported.Message);Assert.IsTrue(repository.Transaction(s=>s.PendingSegments.SetEquals(pending)&&s.DirtyLines.SetEquals(dirty)));
-        Assert.AreEqual(CrossState.Connected,imported.Data!.Map!.Crosses.Single(c=>c.Key==cross.Key).State);Assert.IsTrue(imported.Data.Added.Crosses.All(c=>c.State==CrossState.Connected));
+        Assert.AreEqual(CrossState.Connected,repository.Transaction(s=>s.Crosses[cross.Key].State));
+        Assert.AreEqual(repository.Transaction(s=>!s.StaleCrosses.Contains(cross.Key)),imported.Data!.Map!.Crosses.Any(c=>c.Key==cross.Key));
+        Assert.IsTrue(imported.Data.Added.Crosses.All(c=>c.State==CrossState.Connected));
         await Finish(other);var all=(await client.GetCrossesAsync()).Data!;Assert.AreEqual(3,all.Length);Assert.IsTrue(all.All(c=>c.State==CrossState.Connected));Assert.AreEqual(10,(await client.GetLogicalNodesAsync()).Data!.Length);Assert.AreEqual(Snapshot(repository),Snapshot(new MySqlLineRepository(settings)));
     });
 }

@@ -33,7 +33,7 @@ public sealed class MapUndoTests
         var repo = new InMemoryLineRepository(); Node(repo, 12, "PEOPLE", "PEOPLE", 300.5m);
         var before = Content(repo);
         var created = Edit(repo, r => new LogicalNodeService(r).Create(new("owner", 50.5m, 50.5m, size,
-            new() { Value = size switch { 4 => "False", 8 => "↔", 10 => "people", 12 => "PEOPLE", _ => "命题" }, LogicLanguage = size == 6 ? "P" : "" })));
+            new() { Value = size switch { 4 => "False", 8 => "↔", 10 => "people(id=1)", 12 => "PEOPLE", _ => "命题" }, LogicLanguage = size == 6 ? "P" : "" })));
         Assert.IsTrue(created.Success, created.Message); Ok(new MapUndoService(repo).Undo("owner")); Assert.AreEqual(before, Content(repo));
         Assert.AreEqual("NothingToUndo", new MapUndoService(repo).Undo("owner").Code);
     }
@@ -78,10 +78,10 @@ public sealed class MapUndoTests
     [TestMethod]
     public void Ln12RenameUndoSynchronizesInstances_ExternalNewInstanceBlocksUndo()
     {
-        var repo = new InMemoryLineRepository(); var parent = Node(repo, 12, "PEOPLE", "HUMAN"); Node(repo, 10, "people", "", 80.5m, "bob");
+        var repo = new InMemoryLineRepository(); var parent = Node(repo, 12, "PEOPLE", "HUMAN"); Node(repo, 10, "people(id=1)", "", 80.5m, "bob");
         var before = Content(repo);
         Assert.IsTrue(Edit(repo, r => new LogicalNodeService(r).Update(new(parent.Code, "owner", parent.Version, "HUMAN", "", LogicLanguage: "HUMAN"))).Success);
-        var extra = Node(repo, 10, "human", "", 110.5m, "bob"); var changed = Content(repo);
+        var extra = Node(repo, 10, "human(id=1)", "", 110.5m, "bob"); var changed = Content(repo);
         Assert.IsFalse(new MapUndoService(repo).Undo("owner").Success); Assert.AreEqual(changed, Content(repo));
         Assert.IsTrue(new LogicalNodeService(repo).Delete(new(extra.Code, "bob", extra.Version)).Success);
         Ok(new MapUndoService(repo).Undo("owner")); Assert.AreEqual(before, Content(repo));
@@ -125,7 +125,7 @@ public sealed class MapUndoTests
         if (mode == "parentHasInstance")
         {
             n = Edit(repo, r => new LogicalNodeService(r).Create(new("owner", 200.5m, 200.5m, 12, new() { Value = "HUMAN" }))).Data!;
-            Node(repo, 10, "human", "", 300.5m, "bob");
+            Node(repo, 10, "human(id=1)", "", 300.5m, "bob");
         }
         else
         {

@@ -87,6 +87,7 @@
        <MenuItem Header="切换同位置的关系" InputGestureText="Tab" Click="CycleCross_Click"/>
       </MenuItem>
       <MenuItem Header="LN 逻辑节点(_N)">
+       <MenuItem x:Name="ConnectLogicalNodesMenu" Header="连接两个 LN…" Click="ConnectLogicalNodes_Click" ToolTip="依次点击两个 LN 内的点，选择直连、前往或寻找，预览后 Enter 确认"/>
        <MenuItem Header="选择边长并落点…" InputGestureText="F5" Click="LogicalNodeMode_Click"/>
        <MenuItem x:Name="NewLogicalNodeMenu" Header="直接新增逻辑节点" InputGestureText="LN 模式：A" Click="NewLogicalNode_Click"/>
        <MenuItem Header="选择逻辑节点" InputGestureText="LN 模式：7" Click="SelectLogicalNode_Click"/>
@@ -189,6 +190,8 @@
        <StackPanel>
         <TextBlock Text="LN · 逻辑节点" Style="{StaticResource GroupTitle}"/>
         <WrapPanel>
+         <Button x:Name="ConnectLogicalNodesButton" Content="连接…" Click="ConnectLogicalNodes_Click" ToolTip="点选两个不同 LN，选择直连、前往或寻找。前往：新线从 LN1 接入旧线到 LN2。寻找：从 LN1 沿旧线接出，新线穿过 LN2；Enter / F6 确认"/>
+         <Button x:Name="ConfirmLogicalNodeConnectionButton" Content="确认连接 Enter" Visibility="Collapsed" Click="ConfirmLogicalNodeConnection_Click"/>
          <Button x:Name="LogicalNodeModeButton" Content="新增落点  F5" Click="LogicalNodeMode_Click" ToolTip="F5：选择 4 / 6 / 12 / 18 后左键落点；4 可用于是／否分支，18 为全图唯一开始节点"/>
          <Button x:Name="NewLogicalNodeButton" Content="新增  A" Click="NewLogicalNode_Click" ToolTip="F5 选择边长后，A 在鼠标位置直接校验并保存；不弹属性窗口"/>
          <Button Content="选择  7" Click="SelectLogicalNode_Click"/>
@@ -198,6 +201,7 @@
         </WrapPanel>
         <CheckBox x:Name="LogicalNodeProtectionToggle" Content="显示保护区域  G" Margin="0,0,0,6" Checked="LogicalNodeProtectionToggle_Changed" Unchecked="LogicalNodeProtectionToggle_Changed" ToolTip="默认隐藏。外围虚线正方形与 LN 同心，边长 = LN 边长 × 3 − 1；仅供规划线路，不限制通行或编辑"/>
         <TextBlock Text="F5 选边长 → A / 左键连续新增 · Esc 结束 · 18 为唯一开始" Style="{StaticResource Hint}"/>
+        <TextBlock Text="连接：点两个 LN → 直连 / 前往 / 寻找 → 预览 → Enter 确认，Esc 取消" Style="{StaticResource Hint}"/>
         <TextBlock Text="LN 不重叠、不接触；内无线路节点，Cross 仅不连通" Style="{StaticResource Hint}" Margin="0,3,0,0"/>
         <TextBlock Text="LN4/6/8/10/12：Ctrl+C 复制 → Ctrl+V → 鼠标落点、左键确认" Style="{StaticResource Hint}" Margin="0,3,0,0"/>
        </StackPanel>

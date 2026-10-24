@@ -91,6 +91,11 @@ public partial class MainWindow : Window
         MapView.LinePropertiesRequested += async (_, _) => await EditLinePropertiesAsync();
         MapView.LogicalNodeWindowRequested += async (_, args) => await OpenLogicalNodeAsync(args);
         MapView.LogicalNodeSizeRequested += (_, _) => OpenLogicalNodeSizes();
+        MapView.LogicalNodeConnectionChoicesRequested += async (_,_) =>
+        {
+            var choice=new LogicalNodeConnectionWindow(MapView.ConnectionSourceTitle,MapView.ConnectionTargetTitle){Owner=this};
+            if(choice.ShowDialog()==true)await MapView.PreviewLogicalNodeConnectionAsync(choice.Kind);else MapView.CancelLogicalNodeConnection();
+        };
         Closed += (_, _) => { MapView.StopCrossCalculation();MapView.StopLogicalNodeCalculation();logicalNodeWindow?.Close(); logicalNodeSizeWindow?.Close(); flowDiagramWindow?.Close(); };
         UpdateStatus();
     }
@@ -158,6 +163,13 @@ public partial class MainWindow : Window
         logicalNodeSizeWindow.Show();
     }
     private void LogicalNodeMode_Click(object sender, RoutedEventArgs e) => MapView.RequestLogicalNodePlacement();
+    private void ConnectLogicalNodes_Click(object sender,RoutedEventArgs e)
+    {
+        if(logicalNodeWindow is not null||logicalNodeSizeWindow is not null||flowDiagramWindow is not null||propertyDialogOpen)
+        {MapView.ClipboardNotice("请先完成或关闭当前属性、落点或导入窗口，再连接两个 LN。");return;}
+        MapView.BeginLogicalNodeConnection();MapView.Focus();
+    }
+    private async void ConfirmLogicalNodeConnection_Click(object sender,RoutedEventArgs e)=>await MapView.SaveLogicalNodeConnectionAsync();
     private async void NewLogicalNode_Click(object sender, RoutedEventArgs e) { await MapView.AddLogicalNodeAsync(); MapView.Focus(); }
     private void SelectLogicalNode_Click(object sender, RoutedEventArgs e) { MapView.ToggleLogicalNodeSelection(); MapView.Focus(); }
     private void EditLogicalNode_Click(object sender, RoutedEventArgs e) => MapView.RequestLogicalNodeEdit();
@@ -198,6 +210,8 @@ public partial class MainWindow : Window
         LogicalNodeCalculationStatus.Text=MapView.LogicalNodeCalculationMessage;
         LogicalNodeCalculationStatus.Visibility=string.IsNullOrEmpty(MapView.LogicalNodeCalculationMessage)?Visibility.Collapsed:Visibility.Visible;
         LockLineButton.Content = MapView.SelectedLineIsLocked ? "解锁  L" : "锁定  L";
+        ConfirmLogicalNodeConnectionButton.Visibility=MapView.HasConnectionPreview?Visibility.Visible:Visibility.Collapsed;
+        ConfirmLogicalNodeConnectionButton.IsEnabled=!MapView.IsSaving;
         LockLineMenu.IsChecked = MapView.SelectedLineIsLocked;
         AdditionEndButton.Content = MapView.AddFromStart ? "前端加点  5" : "末端加点  5";
         AdditionEndMenu.IsChecked = MapView.AddFromStart;
@@ -421,7 +435,7 @@ public partial class MainWindow : Window
         e.Handled = true;
         if(key==Key.E && logicalNodeWindow is {WindowState:WindowState.Minimized})
         {logicalNodeWindow.WindowState=WindowState.Normal;logicalNodeWindow.Activate();return;}
-        if (MapView.IsMovingLogicalNode || MapView.IsAreaMoveMode || MapView.IsFlowDiagramImportActive || MapView.IsPastingLine || MapView.IsPastingArea) { await MapView.HandleEditorKeyAsync(key); return; }
+        if (MapView.IsConnectingNodes || MapView.IsMovingLogicalNode || MapView.IsAreaMoveMode || MapView.IsFlowDiagramImportActive || MapView.IsPastingLine || MapView.IsPastingArea) { await MapView.HandleEditorKeyAsync(key); return; }
         if (key == Key.F6) await SaveLineAsync();
         else if (key == Key.K) await CalculateCrossesWithNoticeAsync();
         else if (key == Key.C) await ReverseLineWithNoticeAsync();

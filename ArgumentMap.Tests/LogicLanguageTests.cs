@@ -56,7 +56,7 @@ public sealed class LogicLanguageMySqlTests
     {
         var repository=new MySqlLineRepository(settings);Add(repository,90,110,130,110);var service=new LogicalNodeService(repository);
         var node=service.Create(new("owner",110.5m,110.5m,6,new(){Value="中文",Info="说明"})).Data!;var before=Snapshot(repository);
-        Sql(settings,"ALTER TABLE LogicalNodes DROP CHECK CK_LN_OperandKind, DROP CHECK CK_LN_OperandCase, DROP COLUMN OperandKind, DROP CHECK CK_LN_InstanceValue, DROP CHECK CK_LN_InstanceLogic, DROP CHECK CK_LN_Logic6Required, DROP CHECK CK_LN_Logic12Required, DROP CHECK CK_LN_RelationLogic, DROP INDEX UQ_LN_Logic6, DROP COLUMN Logic6Key, DROP COLUMN LogicLanguage; UPDATE MapMetadata SET SchemaVersion=16 WHERE Id=1");
+        Sql(settings,"DROP TRIGGER TR_LN10_Attributes_Insert; DROP TRIGGER TR_LN10_Attributes_Update; ALTER TABLE LogicalNodes DROP CHECK CK_LN_LogicLength, DROP CHECK CK_LN_OperandKind, DROP CHECK CK_LN_OperandCase, DROP COLUMN OperandKind, DROP CHECK CK_LN_InstanceAttributes, DROP CHECK CK_LN_ValueLength, DROP CHECK CK_LN_InstanceValue, DROP CHECK CK_LN_InstanceLogic, DROP CHECK CK_LN_Logic6Required, DROP CHECK CK_LN_Logic12Required, DROP CHECK CK_LN_RelationLogic, DROP INDEX UQ_LN_Logic6, DROP COLUMN Logic6Key, DROP COLUMN LogicLanguage; UPDATE MapMetadata SET SchemaVersion=16 WHERE Id=1");
         if(interrupt)
         {
             Sql(settings,"CREATE TRIGGER TestLogicPublish BEFORE UPDATE ON MapMetadata FOR EACH ROW BEGIN IF NEW.SchemaVersion=17 THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Logic publication failure'; END IF; END");

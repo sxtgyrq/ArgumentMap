@@ -18,10 +18,10 @@ public sealed class LogicalNodeInstanceMySqlTests
     public Task EnglishEligibilityEnforcedOverHttpAndDal_LegacyChineseInstancesRemainUsable()=>Isolated(async settings=>
     {
         var repository=new MySqlLineRepository(settings);var parent=LogicalNodeInstanceTests.Parent(repository,"H人");
-        LogicalNodeInstanceTests.Child(repository,"h人");var chinese=LogicalNodeInstanceTests.Parent(repository,"人",200.5m);
+        LogicalNodeInstanceTests.Child(repository,"h人(id=1)");var chinese=LogicalNodeInstanceTests.Parent(repository,"人",200.5m);
         var legacyCode=LineCode.Generate();
         // Reproduce a valid version-27 record created before the eligibility rule.
-        Sql(settings,$"INSERT INTO LogicalNodes(Code,Owner,X,Y,SideLength,`Value`,LogicLanguage) VALUES('{legacyCode}','owner',250.5,50.5,10,'人','人 ∈ 人')");
+        Sql(settings,$"INSERT INTO LogicalNodes(Code,Owner,X,Y,SideLength,`Value`,LogicLanguage) VALUES('{legacyCode}','owner',250.5,50.5,10,'人(id=1)','人(id=1)∈人∧1∈人.ID')");
         repository=new MySqlLineRepository(settings);await using var server=await LocalLineServer.StartAsync(repository:repository);
         using var http=new HttpClient{BaseAddress=server.BaseAddress};var client=await TestLogin.ClientAsync(http,server,"owner");
         Assert.IsTrue((await client.GetLogicalNodesAsync()).Success);
@@ -31,9 +31,9 @@ public sealed class LogicalNodeInstanceMySqlTests
         Assert.AreEqual("InvalidInstanceValue",(await client.CreateLogicalNodeAsync(300.5m,50.5m,10,new(){Value="人"})).Code);
         Assert.AreEqual(before,LineTopologyMySqlTests.RawSnapshot(settings));
         Assert.ThrowsExactly<InvalidLogicalNodeInstanceException>(()=>repository.Transaction(s=>
-        {var code=LineCode.Generate();s.LogicalNodes[code]=new(code,"owner",0,300.5m,50.5m,10,new(){Value="人",LogicLanguage="人 ∈ 人"});return true;}));
+        {var code=LineCode.Generate();s.LogicalNodes[code]=new(code,"owner",0,300.5m,50.5m,10,new(){Value="人(id=1)",LogicLanguage="人(id=1)∈人∧1∈人.ID"});return true;}));
         Assert.AreEqual(before,LineTopologyMySqlTests.RawSnapshot(settings));
-        var edited=await client.UpdateLogicalNodeAsync(legacyCode,0,"人","旧实例仍可编辑说明","人 ∈ 人");Assert.IsTrue(edited.Success,edited.Message);
+        var edited=await client.UpdateLogicalNodeAsync(legacyCode,0,"人(id=1)","旧实例仍可编辑说明","人(id=1)∈人∧1∈人.ID");Assert.IsTrue(edited.Success,edited.Message);
         rejected=await client.UpdateLogicalNodeAsync(chinese.Code,chinese.Version,"无英文字母","",chinese.Properties.LogicLanguage);
         Assert.AreEqual("InvalidInstanceParentValue",rejected.Code,rejected.Message);
         Assert.IsTrue((await client.DeleteLogicalNodeAsync(legacyCode,edited.Data!.Version)).Success);
@@ -41,7 +41,7 @@ public sealed class LogicalNodeInstanceMySqlTests
         Assert.IsTrue(allowed.Success,allowed.Message);
         var renamed=await client.UpdateLogicalNodeAsync(parent.Code,parent.Version,"HUMAN","",parent.Properties.LogicLanguage);Assert.IsTrue(renamed.Success,renamed.Message);
         var child=(await client.GetLogicalNodesAsync()).Data!.Single(n=>n.SideLength==10);
-        Assert.AreEqual("human",child.Properties.Value);Assert.AreEqual("human ∈ HUMAN",child.Properties.LogicLanguage);
+        Assert.AreEqual("human(id=1)",child.Properties.Value);Assert.AreEqual("human(id=1)∈HUMAN∧1∈HUMAN.ID",child.Properties.LogicLanguage);
     });
 
     [TestMethod]
@@ -50,7 +50,7 @@ public sealed class LogicalNodeInstanceMySqlTests
         var repository=new MySqlLineRepository(settings);var parent=LogicalNodeInstanceTests.Parent(repository,"HUMAN");
         await using var server=await LocalLineServer.StartAsync(repository:repository);using var http=new HttpClient{BaseAddress=server.BaseAddress};
         var owner=await TestLogin.ClientAsync(http,server,"owner");var other=await TestLogin.ClientAsync(http,server,"other");
-        var create=other.CreateLogicalNodeAsync(90.5m,50.5m,10,new(){Value="human"});
+        var create=other.CreateLogicalNodeAsync(90.5m,50.5m,10,new(){Value="human(id=1)"});
         var rename=owner.UpdateLogicalNodeAsync(parent.Code,parent.Version,"人","",parent.Properties.LogicLanguage);
         await Task.WhenAll(create,rename);Assert.AreEqual(1,(create.Result.Success?1:0)+(rename.Result.Success?1:0));
         var nodes=(await owner.GetLogicalNodesAsync()).Data!;
@@ -68,11 +68,11 @@ public sealed class LogicalNodeInstanceMySqlTests
         await using var second=await LocalLineServer.StartAsync(repository:new MySqlLineRepository(settings));
         using var a=new HttpClient{BaseAddress=first.BaseAddress};using var b=new HttpClient{BaseAddress=second.BaseAddress};
         var alice=await TestLogin.ClientAsync(a,first,"owner");var bob=await TestLogin.ClientAsync(b,second,"other");
-        var p=LogicalNodeClipboard.Decode(LogicalNodeClipboard.Encode(10,new(){Value="people",LogicLanguage="people ∈ PEOPLE",Info="副本"}))!.Properties;
+        var p=LogicalNodeClipboard.Decode(LogicalNodeClipboard.Encode(10,new(){Value="people(id=1)",LogicLanguage="people(id=1)∈PEOPLE∧1∈PEOPLE.ID",Info="副本"}))!.Properties;
         var pending=new[]{alice.CreateLogicalNodeAsync(90.5m,50.5m,10,p),bob.CreateLogicalNodeAsync(130.5m,50.5m,10,p)};
         await Task.WhenAll(pending);foreach(var result in pending)Assert.IsTrue(result.Result.Success,result.Result.Message);
         Assert.AreNotEqual(pending[0].Result.Data!.Code,pending[1].Result.Data!.Code);
-        var nodes=(await alice.GetLogicalNodesAsync()).Data!;Assert.AreEqual(2,nodes.Count(n=>n.SideLength==10&&n.Properties.Value=="people"));
+        var nodes=(await alice.GetLogicalNodesAsync()).Data!;Assert.AreEqual(2,nodes.Count(n=>n.SideLength==10&&n.Properties.Value=="people(id=1)"));
         var before=LineTopologyMySqlTests.RawSnapshot(settings);
         Sql(settings,"CREATE TRIGGER FailInstanceRename BEFORE UPDATE ON LogicalNodes FOR EACH ROW BEGIN IF OLD.SideLength=10 THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Injected instance synchronization failure'; END IF; END");
         try
@@ -86,7 +86,7 @@ public sealed class LogicalNodeInstanceMySqlTests
         var restarted=new MySqlLineRepository(settings);var persisted=new LogicalNodeService(restarted).GetAll().Data!;
         foreach(var child in persisted.Where(n=>n.SideLength==10))
         {
-            Assert.AreEqual("newpeople",child.Properties.Value);Assert.AreEqual("newpeople ∈ NEWPEOPLE",child.Properties.LogicLanguage);
+            Assert.AreEqual("newpeople(id=1)",child.Properties.Value);Assert.AreEqual("newpeople(id=1)∈NEWPEOPLE∧1∈NEWPEOPLE.ID",child.Properties.LogicLanguage);
             var old=nodes.Single(n=>n.Code==child.Code);Assert.AreEqual(old.Owner,child.Owner);Assert.AreEqual(old.Version+1,child.Version);
         }
         before=LineTopologyMySqlTests.RawSnapshot(settings);
@@ -155,7 +155,7 @@ public sealed class LogicalNodeInstanceMySqlTests
         try{var failed=await client.ImportFlowDiagramAsync(request,1000.5m,1000.5m);Assert.AreEqual("DatabaseError",failed.Code);Assert.AreEqual(before,LineTopologyMySqlTests.RawSnapshot(settings));}
         finally{Sql(settings,"DROP TRIGGER FailInstanceImport");}
         var imported=await client.ImportFlowDiagramAsync(request,1000.5m,1000.5m);Assert.IsTrue(imported.Success,imported.Message);
-        Assert.IsTrue(imported.Data!.Added.LogicalNodes.Where(n=>n.SideLength==10).All(n=>n.Properties.Value=="people1"&&n.Properties.LogicLanguage=="people1 ∈ PEOPLE1"));
+        Assert.IsTrue(imported.Data!.Added.LogicalNodes.Where(n=>n.SideLength==10).All(n=>n.Properties.Value=="people1(id=1)"&&n.Properties.LogicLanguage=="people1(id=1)∈PEOPLE1∧1∈PEOPLE1.ID"));
         Sql(settings,"ALTER TABLE LogicalNodes DROP CHECK CK_LN_InstanceLogic");Assert.ThrowsExactly<InvalidOperationException>(()=>new MySqlLineRepository(settings));
     });
 }

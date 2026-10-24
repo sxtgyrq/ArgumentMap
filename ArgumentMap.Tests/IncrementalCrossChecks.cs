@@ -46,7 +46,7 @@ internal static class IncrementalCrossChecks
         cross = service.Edit(new(cross.Key, "owner", cross.Version, CrossState.Connected)).Data!;
         a = lines.CheckShapeIsOKThenSave(Shape(a, (10, 10), (20, 10), (30, 10))).Data!;
         Check(repository.Transaction(state => state.PendingSegments.Count == 2 && state.StaleCrosses.Contains(cross.Key)), "Save marks both new segments and affected old Cross");
-        Check(service.GetAll().Data!.Single() == cross, "Old Cross retained until revalidation");
+        Check(repository.Transaction(s=>s.Crosses[cross.Key]) == cross && service.GetAll().Data!.Length == 0, "Old Cross retained in storage but hidden until revalidation");
         pendingEdit = service.Edit(new(cross.Key, "owner", cross.Version, CrossState.Connected));
         Check(pendingEdit.Success && repository.Transaction(state => state.StaleCrosses.Contains(cross.Key)), "Pending Cross edit retains recalculation marker");
         cross = pendingEdit.Data!;
@@ -62,7 +62,7 @@ internal static class IncrementalCrossChecks
         a = lines.CheckShapeIsOKThenSave(Shape(a, (10, 11), (30, 11))).Data!;
         Check(repository.Transaction(state => state.StaleCrosses.Contains(canonical.Key)), "Moved geometry marks old Cross obsolete");
         service.Calculate();
-        Check(service.GetAll().Data!.Length == 2, "Old Cross remains marked until final sweep; new Cross generated");
+        Check(repository.Transaction(s=>s.Crosses.Count) == 2 && service.GetAll().Data!.Length == 1, "Old Cross remains marked and hidden until final sweep; new Cross generated");
         service.Calculate();
         var moved = service.GetAll().Data!.Single();
         Check(moved.Key != canonical.Key && moved.Key.Position.Y == 11 && moved.State == CrossState.Unset, "Cleanup deletes obsolete Cross and new coordinate starts unset");

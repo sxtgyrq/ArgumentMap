@@ -164,7 +164,7 @@ public sealed class MapUndoService(ILineRepository repository)
     {
         var map = new MapAreaSnapshot(state.Lines.Values.Where(l => l.Nodes.Length >= 2).OrderBy(l => l.Code).ToArray(),
             state.LogicalNodes.Values.OrderBy(n => n.Code).Select(n => LogicalNodePositions.Snapshot(state, n) with
-                { CanEdit = LogicalNodeService.CanEdit(state, n, owner) }).ToArray(), state.Crosses.Values.OrderBy(c => c.Key).ToArray());
+                { CanEdit = LogicalNodeService.CanEdit(state, n, owner) }).ToArray(), CrossTopology.Visible(state));
         return ServiceResult<MapUndoResult>.Ok(new(operation, map), repeated ? $"上次撤销已完成：{operation}。已刷新最新数据，本次重试没有再次撤销。" :
             $"已从数据库撤销：{operation}。相关对象和关联数据已在同一事务恢复。");
     }

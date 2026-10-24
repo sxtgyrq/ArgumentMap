@@ -18,7 +18,7 @@ public sealed partial class CoordinateMapView
     public bool BeginFlowDiagramImport()
     {
         if(IsSaving||IsFlowDiagramImportActive)return false;
-        if(IsPastingLine||IsPastingArea){PendingMapOperation();return false;}
+        if(IsConnectingNodes||IsPastingLine||IsPastingArea){PendingMapOperation();return false;}
         flowImportAction=true;
         if(editor.Mode is LineEditorMode.Ready or LineEditorMode.Drawing||IsMovingLogicalNode||IsAreaMoveMode)
         {flowImportMessage="请先保存或取消当前线路、LN 移动或框选移动，再导入流程图。";Refresh();return false;}

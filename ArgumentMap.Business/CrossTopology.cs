@@ -6,6 +6,13 @@ namespace ArgumentMap.Business;
 
 internal static class CrossTopology
 {
+    // Match the old DictCross query (IsChanged >= 0). Pending records stay in
+    // storage so K can restore their passage settings, but are not map markers.
+    internal static CrossSnapshot[] Visible(LineStoreState state) => state.Crosses.Values
+        .Where(c => !state.StaleCrosses.Contains(c.Key) &&
+            state.Lines.ContainsKey(c.Key.RoadCode1) && state.Lines.ContainsKey(c.Key.RoadCode2))
+        .OrderBy(c => c.Key).ToArray();
+
     internal static void MarkChanged(LineStoreState state,IReadOnlySet<string> roads,bool recordSqlMarks=false)
     {
         foreach(var key in state.Crosses.Keys.Where(k=>roads.Contains(k.RoadCode1)||roads.Contains(k.RoadCode2)))

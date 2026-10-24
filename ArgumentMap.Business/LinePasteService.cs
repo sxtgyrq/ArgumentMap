@@ -38,7 +38,7 @@ public sealed class LinePasteService(ILineRepository repository)
         // creation/save/calculation pipeline has validated the complete geometry.
         line=working.Lines[line.Code] with{IsLocked=source.IsLocked};working.Lines[line.Code]=line;
         var map=new MapAreaSnapshot(working.Lines.Values.Where(l=>l.Nodes.Length>=2).OrderBy(l=>l.Code).Select(l=>l with{Nodes=l.Nodes.ToArray()}).ToArray(),
-            new LogicalNodeService(scope).GetAll(request.Owner).Data!,working.Crosses.Values.OrderBy(c=>c.Key).ToArray());
+            new LogicalNodeService(scope).GetAll(request.Owner).Data!,CrossTopology.Visible(working));
         LineTopologyService.Publish(state,working);
         return ServiceResult<LinePasteResult>.Ok(new(line with{Nodes=line.Nodes.ToArray()},map),$"已粘贴线路 {line.Code}：形状、名称、说明、速度、方向和锁定状态已保留；Cross、LN 关联已重算。");
     });

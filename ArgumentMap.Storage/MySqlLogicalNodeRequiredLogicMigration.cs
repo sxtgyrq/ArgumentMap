@@ -20,7 +20,7 @@ public sealed partial class MySqlLineRepository
         using var check=connection.CreateCommand();
         check.CommandText="SELECT COUNT(*) FROM information_schema.TABLE_CONSTRAINTS WHERE CONSTRAINT_SCHEMA=@db AND TABLE_NAME='LogicalNodes' AND CONSTRAINT_NAME='CK_LN_Logic6Required' AND CONSTRAINT_TYPE='CHECK' AND ENFORCED='YES'";
         check.Parameters.AddWithValue("@db",DatabaseName);var hasCheck=Convert.ToInt32(check.ExecuteScalar())==1;
-        if(current is 21 or 22 or 23 or 24 or 25 or 26 or 27 or 28 or 29 or 30 or 31)
+        if(current is 21 or 22 or 23 or 24 or 25 or 26 or 27 or 28 or 29 or 30 or 31 or 32 or 33 or 34 or 35)
         {
             if(!hasColumn||!hasIndex||!hasCheck)throw new InvalidOperationException("缺少边长 6 的 LN 逻辑语言非空或唯一约束，数据库架构不完整。");
             return;

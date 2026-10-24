@@ -21,7 +21,7 @@ internal static class LogicalNodeBatch
                 var parentValue=LogicalNodeInstanceRules.ParentValue(value);
                 var local=input.Where(l=>l.Size==12&&LogicalNodeValueUniqueness.Normalize(l.Value)==parentValue).ToArray();
                 if(local.Length>1)return Fail("AmbiguousInstanceParent",$"LN {n.Id}：本批有多个值为“{parentValue}”的 LN12，无法确定实例所属；请使用不同的 LN12 值。");
-                if(local.Length==1)value=LogicalNodeInstanceRules.Normalize(working.LogicalNodes[codes[local[0].Id]].Properties.Value);
+                if(local.Length==1)value=LogicalNodeInstanceRules.Reparent(value,working.LogicalNodes[codes[local[0].Id]].Properties.Value);
                 logic=LogicalNodeInstanceRules.Expression(value);
             }
             if(n.Size==4&&!string.IsNullOrWhiteSpace(logic))

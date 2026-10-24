@@ -142,7 +142,7 @@ internal static class CrossEditChecks
         await editor.EditSelectedAsync();
         await editor.RemoveAsync(new Point(1040, 1000));
         Check(await editor.CompleteAsync(), "Deleting terminal node saves shortened polyline");
-        Check((await client.GetCrossesAsync()).Data!.Length == 1, "Cross remains marked until K's final sweep");
+        Check((await client.GetCrossesAsync()).Data!.Length == 0, "Cross is hidden immediately while marked for K's final sweep");
         await Calculate();
         Check((await client.GetCrossesAsync()).Data!.Length == 0, "K removes Cross lost after endpoint deletion");
         Check(CoordinateMapView.IsEditorKey(Key.T), "T routed to insertion as in old editor");

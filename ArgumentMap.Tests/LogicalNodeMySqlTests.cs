@@ -68,7 +68,7 @@ public sealed class LogicalNodeMySqlTests
         LogicalNodeTests.Calculate(service);var node=service.GetAll().Data!.Single();Assert.AreEqual(110.5m,node.X);Assert.AreEqual(0.5125,node.Positions.Single().RoadPercent,1e-10);Assert.AreEqual(JsonSerializer.Serialize(node),JsonSerializer.Serialize(new LogicalNodeService(new MySqlLineRepository(settings)).GetAll().Data!.Single()));
         before=Snapshot(repository);
         foreach(var change in new[]{"X=110","Y=110.1","SideLength=10","X=0.5","`Value`=REPEAT('x',33)","Code='1234567890'"})
-        {try{Sql(settings,$"UPDATE LogicalNodes SET {change}");Assert.Fail($"Constraint accepted {change}");}catch(MySqlException ex){Assert.AreEqual(change.StartsWith("`Value`")?1406:3819,ex.Number);}}
+        {try{Sql(settings,$"UPDATE LogicalNodes SET {change}");Assert.Fail($"Constraint accepted {change}");}catch(MySqlException ex){Assert.AreEqual(3819,ex.Number);}}
         Assert.AreEqual(before,Snapshot(repository));
         return Task.CompletedTask;
     });

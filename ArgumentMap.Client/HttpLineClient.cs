@@ -4,9 +4,13 @@ using ArgumentMap.Contracts;
 
 namespace ArgumentMap.Client;
 
-public sealed class HttpLineClient(HttpClient client, LoginSession session) : ILineClient, ICrossClient, ILinePropertiesClient, ILineDirectionClient, ILogicalNodeClient, ILogicalNodeStepClient, ILogicalNodeMoveClient, ILogicalNodeLogicClient, ILineTopologyClient, ILineNodeEditClient, IMapAreaMoveClient, IFlowDiagramClient, ILinePasteClient, IMapAreaPasteClient, IMapUndoClient, ILogicalNodeOperandClient
+public sealed class HttpLineClient(HttpClient client, LoginSession session) : ILineClient, ICrossClient, ILinePropertiesClient, ILineDirectionClient, ILogicalNodeClient, ILogicalNodeStepClient, ILogicalNodeMoveClient, ILogicalNodeLogicClient, ILineTopologyClient, ILineNodeEditClient, IMapAreaMoveClient, IFlowDiagramClient, ILinePasteClient, IMapAreaPasteClient, IMapUndoClient, ILogicalNodeOperandClient, ILogicalNodeConnectionClient, ILogicalNodeInstanceCreationClient
 {
     private string? pendingUndoRequest;
+    public Task<ServiceResult<LogicalNodeConnectionPlan>> PreviewLogicalNodeConnectionAsync(LogicalNodeConnectionAnchor source,LogicalNodeConnectionAnchor target,LogicalNodeConnectionKind kind=LogicalNodeConnectionKind.Direct)=>
+        Post<PreviewLogicalNodeConnectionRequest,LogicalNodeConnectionPlan>("PreviewLogicalNodeConnection",new(Session.UserName,source,target,Session.LoginCode,kind));
+    public Task<ServiceResult<LogicalNodeConnectionResult>> SaveLogicalNodeConnectionAsync(LogicalNodeConnectionPlan plan)=>
+        Post<SaveLogicalNodeConnectionRequest,LogicalNodeConnectionResult>("SaveLogicalNodeConnection",new(Session.UserName,plan,Session.LoginCode));
     public async Task<ServiceResult<MapUndoResult>> UndoAsync()
     {
         var candidate = Guid.NewGuid().ToString("N");
@@ -64,6 +68,8 @@ public sealed class HttpLineClient(HttpClient client, LoginSession session) : IL
     public Task<ServiceResult<LogicalNodeSnapshot[]>> GetLogicalNodesAsync() => Post<SessionRequest, LogicalNodeSnapshot[]>("GetLogicalNodes", new(Session.UserName, Session.LoginCode));
     public Task<ServiceResult<LogicalNodeSnapshot>> CreateLogicalNodeAsync(decimal x, decimal y, int sideLength, LogicalNodeProperties properties) =>
         Post<CreateLogicalNodeRequest, LogicalNodeSnapshot>(sideLength==6&&properties.OperandKind!=LogicalNodeOperandRules.Custom?"AddLogicalNodeWithOperandKind":"AddLogicalNode", new(Session.UserName, x, y, sideLength, properties, Session.LoginCode));
+    public Task<ServiceResult<LogicalNodeSnapshot>> CreateLogicalNodeInstanceAsync(decimal x,decimal y,string parentCode,LogicalNodeProperties properties) =>
+        Post<CreateLogicalNodeRequest, LogicalNodeSnapshot>("AddLogicalNode",new(Session.UserName,x,y,10,properties,Session.LoginCode,parentCode));
     public Task<ServiceResult<LogicalNodeSnapshot>> UpdateLogicalNodeAsync(string code, long version, string value, string info) =>
         Post<UpdateLogicalNodeRequest, LogicalNodeSnapshot>("UpdateLogicalNode", new(code, Session.UserName, version, value, info, Session.LoginCode));
     public Task<ServiceResult<bool>> DeleteLogicalNodeAsync(string code, long version) =>

@@ -8,7 +8,7 @@ public sealed partial class MySqlLineRepository
     {
         using var version=connection.CreateCommand();version.CommandText="SELECT SchemaVersion FROM MapMetadata WHERE Id=1";
         var current=Convert.ToInt32(version.ExecuteScalar());
-        if(current is not (16 or 17 or 18 or 19 or 20 or 21 or 22 or 23 or 24 or 25 or 26 or 27 or 28 or 29 or 30 or 31))throw new InvalidOperationException("逻辑语言架构版本不兼容。");
+        if(current is not (16 or 17 or 18 or 19 or 20 or 21 or 22 or 23 or 24 or 25 or 26 or 27 or 28 or 29 or 30 or 31 or 32 or 33 or 34 or 35))throw new InvalidOperationException("逻辑语言架构版本不兼容。");
         var exists=ColumnExists(connection,"LogicalNodes","LogicLanguage");
         if(current>=17)
         {

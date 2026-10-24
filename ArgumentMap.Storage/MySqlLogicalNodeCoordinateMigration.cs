@@ -15,7 +15,7 @@ public sealed partial class MySqlLineRepository
         using var check=connection.CreateCommand();
         check.CommandText="SELECT COUNT(*) FROM information_schema.TABLE_CONSTRAINTS WHERE CONSTRAINT_SCHEMA=@db AND TABLE_NAME='LogicalNodes' AND CONSTRAINT_NAME='CK_LN_CenterHalf' AND CONSTRAINT_TYPE='CHECK' AND ENFORCED='YES'";
         check.Parameters.AddWithValue("@db",DatabaseName);var hasCheck=Convert.ToInt32(check.ExecuteScalar())==1;
-        if(current is 26 or 27 or 28 or 29 or 30 or 31)
+        if(current is 26 or 27 or 28 or 29 or 30 or 31 or 32 or 33 or 34 or 35)
         {if(!ready||!hasCheck)throw new InvalidOperationException("LN 中心坐标精度或半整数约束缺失，数据库架构不完整。");return;}
         if(current is not (25 or LogicalNodeCoordinatesPending))throw new InvalidOperationException("LN 中心坐标架构版本不兼容。");
         using var invalid=connection.CreateCommand();

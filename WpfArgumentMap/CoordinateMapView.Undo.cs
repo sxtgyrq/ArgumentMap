@@ -9,7 +9,7 @@ public sealed partial class CoordinateMapView
     public async Task<bool> UndoDatabaseAsync()
     {
         if (IsSaving) return false;
-        if (editor.Mode is LineEditorMode.Ready or LineEditorMode.Drawing || IsMovingLogicalNode ||
+        if (IsConnectingNodes || editor.Mode is LineEditorMode.Ready or LineEditorMode.Drawing || IsMovingLogicalNode ||
             IsPlacingLogicalNode || IsPastingLine || IsPastingArea || IsFlowDiagramImportActive)
         {
             ClipboardNotice("请先保存或取消当前绘制、移动、粘贴或导入草稿，再撤销数据库操作；当前草稿已保留。");

@@ -1,0 +1,15 @@
+<Window x:Class="WpfArgumentMap.LogicalNodeConnectionWindow"
+ xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+ Title="连接两个 LN" Width="530" SizeToContent="Height" ResizeMode="NoResize" WindowStartupLocation="CenterOwner" Background="#F3F6FA" PreviewKeyDown="Window_PreviewKeyDown">
+ <StackPanel Margin="24">
+  <TextBlock Text="连接方式" FontSize="23" FontWeight="SemiBold" Foreground="#273A52" Margin="0,0,0,16"/>
+  <TextBlock x:Name="SourceText" TextWrapping="Wrap" Margin="0,0,0,8"/>
+  <TextBlock x:Name="TargetText" TextWrapping="Wrap" Margin="0,0,0,16"/>
+  <Button x:Name="DirectButton" Content="直连 · 自动规划线路" Padding="12" Click="Direct_Click" IsDefault="True" Margin="0,0,0,8"/>
+  <Button x:Name="GoToButton" Content="前往 · 接入已有通路" Padding="12" Click="GoTo_Click" Margin="0,0,0,8"/>
+  <Button x:Name="FindButton" Content="寻找 · 从已有通路接出" Padding="12" Click="Find_Click" Margin="0,0,0,8"/>
+  <Button x:Name="OtherButton" Content="其他 · 暂未开放" IsEnabled="False" Padding="12" Margin="0,0,0,14"/>
+  <TextBlock Text="直连：新线穿越两个 LN。前往：新线穿越起点，接入已有通路到终点。寻找：从起点沿已有通路接出，新线穿越终点。途中避开其他 LN；前往和寻找均按新增线路最短选择 Cross，支持双向线路。" TextWrapping="Wrap" Foreground="#596579"/>
+  <Button Content="取消" IsCancel="True" Padding="16,7" HorizontalAlignment="Right" Margin="0,18,0,0"/>
+ </StackPanel>
+</Window>

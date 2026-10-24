@@ -65,7 +65,7 @@ public sealed class FlowDiagramService(ILineRepository repository)
         if(commit)
         {
             LineTopologyService.Publish(state,working);
-            map=new(state.Lines.Values.Where(l=>l.Nodes.Length>=2).OrderBy(l=>l.Code).Select(l=>l with{Nodes=l.Nodes.ToArray()}).ToArray(),nodes.GetAll(request.Owner).Data!,state.Crosses.Values.OrderBy(c=>c.Key).ToArray());
+            map=new(state.Lines.Values.Where(l=>l.Nodes.Length>=2).OrderBy(l=>l.Code).Select(l=>l with{Nodes=l.Nodes.ToArray()}).ToArray(),nodes.GetAll(request.Owner).Data!,CrossTopology.Visible(state));
         }
         return ServiceResult<FlowDiagramResult>.Ok(new(added,map,lnCodes,roadCodes,notes.ToArray()),$"{(commit?"已导入":"校验通过，尚未保存")}：{added.Lines.Length} 条线路、{added.LogicalNodes.Length} 个 LN、{added.Crosses.Length} 个 Cross。"+(notes.Count>0?" "+string.Join(" ",notes):""));
     });

@@ -26,7 +26,7 @@ public sealed partial class MySqlLineRepository
         var current = Convert.ToInt32(version.ExecuteScalar());
         var hasColumn = ColumnExists(connection, "LogicalNodes", "Value12Key");
         var hasIndex = HasLogicalNodeValueIndex(connection);
-        if (current is 19 or 20 or 21 or 22 or 23 or 24 or 25 or 26 or 27 or 28 or 29 or 30 or 31)
+        if (current is 19 or 20 or 21 or 22 or 23 or 24 or 25 or 26 or 27 or 28 or 29 or 30 or 31 or 32 or 33 or 34 or 35)
         {
             if (!hasColumn || !hasIndex) throw new InvalidOperationException("缺少边长 12 的 LN 值唯一约束，数据库架构不完整。");
             return;

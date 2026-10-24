@@ -14,12 +14,12 @@ public sealed class LogicalNodeInstanceTests
         var result=new LogicalNodeService(repository).Create(new("owner",x,y,12,new(){Value=value,LogicLanguage="Custom logic remains unchanged"}));
         Assert.IsTrue(result.Success,result.Message);return result.Data!;
     }
-    internal static LogicalNodeSnapshot Child(ILineRepository repository,string value="people",decimal x=90.5m,decimal y=50.5m,string owner="owner")
+    internal static LogicalNodeSnapshot Child(ILineRepository repository,string value="people(id=1)",decimal x=90.5m,decimal y=50.5m,string owner="owner")
     {
         var result=new LogicalNodeService(repository).Create(new(owner,x,y,10,new(){Value=value,LogicLanguage="ignored by Server",Info="实例说明"}));
         Assert.IsTrue(result.Success,result.Message);return result.Data!;
     }
-    internal static string Document(string value="people",string parent="PEOPLE",bool includeParent=true)=>JsonSerializer.Serialize(new
+    internal static string Document(string value="people(id=1)",string parent="PEOPLE",bool includeParent=true)=>JsonSerializer.Serialize(new
     {
         format="argumentmap.flow/1",origin="child",
         ln=new[]{new{id="child",at=new[]{0.5m,0.5m},size=10,value,logic=LogicalNodeInstanceRules.Expression(LogicalNodeInstanceRules.Normalize(value))},
@@ -28,7 +28,7 @@ public sealed class LogicalNodeInstanceTests
         roads=new[]{new{id="main",points=new[]{new[]{-60,0},new[]{60,0}},direction="both",speed=100}},crosses=Array.Empty<object>()
     });
 
-    [TestMethod,DataRow("people","PEOPLE"),DataRow("People人员","PEOPLE人员"),DataRow("H人","H人")]
+    [TestMethod,DataRow("people(id=1)","PEOPLE"),DataRow("People人员(id=1)","PEOPLE人员"),DataRow("H人(id=1)","H人")]
     public void InstancesNormalizeAndMayRepeat_LogicIsDerived_ParentLogicIsIndependent(string value,string parentValue)
     {
         var map=new TestMap();var parent=Parent(map.Repository,parentValue);var a=Child(map.Repository,value);var b=Child(map.Repository,value,130.5m);
@@ -40,25 +40,25 @@ public sealed class LogicalNodeInstanceTests
     public void MissingParentRejected_CreateAndEditLeaveEverythingUnchanged()
     {
         var map=new TestMap();var service=new LogicalNodeService(map.Repository);var before=map.Snapshot();
-        Assert.AreEqual("InstanceParentNotFound",service.Create(new("owner",90.5m,50.5m,10,new(){Value="people"})).Code);
+        Assert.AreEqual("InstanceParentNotFound",service.Create(new("owner",90.5m,50.5m,10,new(){Value="people(id=1)"})).Code);
         Assert.AreEqual(before,map.Snapshot());Parent(map.Repository);var child=Child(map.Repository);before=map.Snapshot();
-        Assert.AreEqual("InstanceParentNotFound",service.Update(new(child.Code,"owner",child.Version,"unknown","",LogicLanguage:"anything")).Code);
+        Assert.AreEqual("InstanceParentNotFound",service.Update(new(child.Code,"owner",child.Version,"unknown(id=1)","",LogicLanguage:"anything")).Code);
         Assert.AreEqual(before,map.Snapshot());
     }
     [TestMethod]
     public void RenameParentSynchronizesEveryInstanceAcrossOwners_StaleEditorCannotOverwrite_DeletionRequiresRemovingInstancesFirst()
     {
         var map=new TestMap();var service=new LogicalNodeService(map.Repository);var parent=Parent(map.Repository);
-        var a=Child(map.Repository);var b=Child(map.Repository,"people",130.5m,owner:"other");
+        var a=Child(map.Repository);var b=Child(map.Repository,"people(id=1)",130.5m,owner:"other");
         var result=service.Update(new(parent.Code,"owner",parent.Version,"Participants人员","parent info",LogicLanguage:"custom(P)"));
         Assert.IsTrue(result.Success,result.Message);
         foreach(var old in new[]{a,b})
         {
             var current=service.GetAll().Data!.Single(n=>n.Code==old.Code);
             Assert.AreEqual(old.Owner,current.Owner);Assert.AreEqual(old.Version+1,current.Version);
-            Assert.AreEqual("participants人员",current.Properties.Value);Assert.AreEqual("participants人员 ∈ PARTICIPANTS人员",current.Properties.LogicLanguage);
+            Assert.AreEqual("participants人员(id=1)",current.Properties.Value);Assert.AreEqual("participants人员(id=1)∈PARTICIPANTS人员∧1∈PARTICIPANTS人员.ID",current.Properties.LogicLanguage);
             Assert.AreEqual(old.Properties.Info,current.Properties.Info);CollectionAssert.AreEqual(old.Positions,current.Positions);
-            Assert.AreEqual("VersionConflict",service.Update(new(old.Code,old.Owner,old.Version,"people","")).Code);
+            Assert.AreEqual("VersionConflict",service.Update(new(old.Code,old.Owner,old.Version,"people(id=1)","")).Code);
         }
         var currentParent=result.Data!;var before=map.Snapshot();
         Assert.AreEqual("LogicalNodeHasInstances",service.Delete(new(parent.Code,"owner",currentParent.Version)).Code);Assert.AreEqual(before,map.Snapshot());
@@ -94,8 +94,8 @@ public sealed class LogicalNodeInstanceTests
             Assert.AreEqual("PEOPLE"+index,parent.Properties.Value);Assert.AreEqual("Original12Logic",parent.Properties.LogicLanguage);
             foreach(var instance in imported.Data.Added.LogicalNodes.Where(n=>n.SideLength==10))
             {
-                Assert.AreEqual("people"+index,instance.Properties.Value);
-                Assert.AreEqual($"people{index} ∈ PEOPLE{index}",instance.Properties.LogicLanguage);Assert.AreEqual(1,instance.Positions.Length);
+                Assert.AreEqual("people"+index+"(id=1)",instance.Properties.Value);
+                Assert.AreEqual($"people{index}(id=1)∈PEOPLE{index}∧1∈PEOPLE{index}.ID",instance.Properties.LogicLanguage);Assert.AreEqual(1,instance.Positions.Length);
             }
         }
     }
@@ -105,7 +105,7 @@ public sealed class LogicalNodeInstanceTests
         var map=new TestMap();var service=new FlowDiagramService(map.Repository);var request=new FlowDiagramRequest("owner",Document(includeParent:false),1000.5m,1000.5m);
         Assert.AreEqual("InstanceParentNotFound",service.Import(request).Code);Assert.AreEqual(0,map.Repository.Transaction(s=>s.LogicalNodes.Count));
         Parent(map.Repository);Assert.IsTrue(service.Import(request).Success);
-        var before=map.Snapshot();var bad=request with{Text=request.Text.Replace("people ∈ PEOPLE","∀people(people∈PEOPLE)")};
+        var before=map.Snapshot();var bad=request with{Text=request.Text.Replace("people(id=1)∈PEOPLE∧1∈PEOPLE.ID","∀people(people∈PEOPLE)")};
         // JSON serializes non-ASCII by default, use an explicitly conflicting field instead.
         var json=System.Text.Json.Nodes.JsonNode.Parse(request.Text)!;json["ln"]![0]!["logic"]="∀people(people∈PEOPLE)";
         Assert.IsFalse(service.Import(bad with{Text=json.ToJsonString()}).Success);Assert.AreEqual(before,map.Snapshot());
@@ -118,7 +118,7 @@ public sealed class LogicalNodeInstanceTests
         Assert.IsTrue(service.Select(new("owner",bounds)).Success);
         Assert.AreEqual("EmptySelection",service.Select(new("owner",bounds with{Left=bounds.Left+0.01m})).Code);
         var before=map.Snapshot();
-        Assert.IsFalse(new LogicalNodeService(map.Repository).Create(new("owner",100.5m,50.5m,10,new(){Value="people"})).Success,"Touching at the square edge must fail.");
+        Assert.IsFalse(new LogicalNodeService(map.Repository).Create(new("owner",100.5m,50.5m,10,new(){Value="people(id=1)"})).Success,"Touching at the square edge must fail.");
         Assert.AreEqual(before,map.Snapshot());
     }
 
@@ -126,7 +126,7 @@ public sealed class LogicalNodeInstanceTests
     public void MovingAndDeletingInstancesUseExistingPositionLifecycle_ParentNeverMovesWithChild()
     {
         var map=new TestMap();var parent=Parent(map.Repository);map.Add(70,100,150,100);
-        var child=Child(map.Repository,"people",90.5m,100.5m);var service=new LogicalNodeService(map.Repository);
+        var child=Child(map.Repository,"people(id=1)",90.5m,100.5m);var service=new LogicalNodeService(map.Repository);
         Assert.AreEqual(1,child.Positions.Length);var moved=service.Move(new(child.Code,"owner",child.Version,90.5m,150.5m));
         Assert.IsTrue(moved.Success,moved.Message);Assert.AreEqual(0,moved.Data!.Positions.Length);
         Assert.AreEqual(parent.X,service.GetAll().Data!.Single(n=>n.Code==parent.Code).X);

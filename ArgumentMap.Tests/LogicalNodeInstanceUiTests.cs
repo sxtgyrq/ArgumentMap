@@ -38,7 +38,7 @@ public sealed class LogicalNodeInstanceUiTests
             Assert.IsTrue(view.PlaceLogicalNodeAsync(new(90,50)).GetAwaiter().GetResult());Assert.IsTrue(view.IsPlacingLogicalNode);
             Assert.IsTrue(view.PlaceLogicalNodeAsync(new(130,50)).GetAwaiter().GetResult());
             var children=new LogicalNodeService(handler.Repository).GetAll().Data!.Where(n=>n.SideLength==10).ToArray();Assert.AreEqual(2,children.Length);
-            Assert.IsTrue(children.All(n=>n.Properties.Value=="people"&&n.Properties.LogicLanguage=="people ∈ PEOPLE"));
+            Assert.IsTrue(children.All(n=>n.Properties.Value==LogicalNodeInstanceRules.DefaultValue("PEOPLE",n.Code)&&n.Properties.LogicLanguage==LogicalNodeInstanceRules.Expression(n.Properties.Value)));
             view.BeginLogicalNodePlacement(4); // Switching size discards the instance placement template.
             Assert.IsTrue(view.PlaceLogicalNodeAsync(new(170,50)).GetAwaiter().GetResult());
             Assert.AreEqual("False",new LogicalNodeService(handler.Repository).GetAll().Data!.Single(n=>n.SideLength==4).Properties.Value);
@@ -46,8 +46,8 @@ public sealed class LogicalNodeInstanceUiTests
             try
             {
                 Assert.IsTrue(((TextBox)editor.FindName("LogicInput")).IsReadOnly);
-                ((TextBox)editor.FindName("ValueInput")).Text="PEOPLE";
-                Assert.AreEqual("people ∈ PEOPLE",((TextBox)editor.FindName("LogicInput")).Text);
+                ((TextBox)editor.FindName("ValueInput")).Text="PEOPLE(name=Alice)";
+                Assert.AreEqual("people(name=Alice)∈PEOPLE∧Alice∈PEOPLE.NAME",((TextBox)editor.FindName("LogicInput")).Text);
             }
             finally{editor.Close();}
             view.CancelEditing();Assert.IsTrue(view.BeginPasteLogicalNode(LogicalNodeClipboard.Encode(10,children[0].Properties)));
@@ -83,7 +83,7 @@ public sealed class LogicalNodeInstanceUiTests
     [TestMethod]
     public void ClipboardRejectsInvalidInstanceContent_AndAllowsDuplicateValidContent()
     {
-        var p=new LogicalNodeProperties{Value="people",LogicLanguage="people ∈ PEOPLE",Info="实例"};
+        var p=new LogicalNodeProperties{Value="people(id=1)",LogicLanguage="people(id=1)∈PEOPLE∧1∈PEOPLE.ID",Info="实例"};
         Assert.AreEqual(p,LogicalNodeClipboard.Decode(LogicalNodeClipboard.Encode(10,p))!.Properties);
         foreach(var bad in new[]{p with{Value="PEOPLE"},p with{LogicLanguage="∀people(people∈PEOPLE)"},p with{Value=""}})
             Assert.IsFalse(LogicalNodeClipboard.Valid(10,bad));

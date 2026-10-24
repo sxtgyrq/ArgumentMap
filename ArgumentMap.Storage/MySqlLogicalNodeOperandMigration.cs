@@ -9,13 +9,13 @@ public sealed partial class MySqlLineRepository
     {
         using var version = connection.CreateCommand(); version.CommandText = "SELECT SchemaVersion FROM MapMetadata WHERE Id=1";
         var current = Convert.ToInt32(version.ExecuteScalar());
-        if (current is not (30 or 31 or LogicalNodeOperandPending)) throw new InvalidOperationException("LN6 OperandKind 架构版本不兼容。");
+        if (current is not (30 or 31 or 32 or 33 or 34 or 35 or LogicalNodeOperandPending)) throw new InvalidOperationException("LN6 OperandKind 架构版本不兼容。");
         var hasColumn = ColumnExists(connection, "LogicalNodes", "OperandKind");
         using var checks = connection.CreateCommand();
         checks.CommandText = "SELECT COUNT(*) FROM information_schema.TABLE_CONSTRAINTS WHERE CONSTRAINT_SCHEMA=@db AND TABLE_NAME='LogicalNodes' AND CONSTRAINT_TYPE='CHECK' AND ENFORCED='YES' AND CONSTRAINT_NAME IN ('CK_LN_OperandKind','CK_LN_OperandCase')";
         checks.Parameters.AddWithValue("@db", DatabaseName);
         var ready = hasColumn && Convert.ToInt32(checks.ExecuteScalar()) == 2;
-        if (current == 31) { if (!ready) throw new InvalidOperationException("缺少 LN6 OperandKind 数据库约束。"); return; }
+        if (current is 31 or 32 or 33 or 34 or 35) { if (!ready) throw new InvalidOperationException("缺少 LN6 OperandKind 数据库约束。"); return; }
         if (!ready)
         {
             if (current == 30) BackupLogicalNodeMigration(connection);

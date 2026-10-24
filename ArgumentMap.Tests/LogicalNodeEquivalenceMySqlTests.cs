@@ -18,7 +18,7 @@ public sealed class LogicalNodeEquivalenceMySqlTests
     public Task Upgrade28To29PreservesAllNodeDataAndIsChanged_InterruptedUpgradeStaysClosedAndCanRetry(string phase)=>Isolated(settings=>
     {
         var old=new MySqlLineRepository(settings);Add(old,20,50,500,50);var service=new LogicalNodeService(old);
-        LogicalNodeInstanceTests.Parent(old,"HUMAN",50.5m);LogicalNodeInstanceTests.Child(old,"human",80.5m);
+        LogicalNodeInstanceTests.Parent(old,"HUMAN",50.5m);LogicalNodeInstanceTests.Child(old,"human(id=1)",80.5m);
         Assert.IsTrue(service.Create(new("owner",110.5m,50.5m,6,new(){Value="前提",LogicLanguage="P ∧ Q"})).Success);
         Assert.IsTrue(service.Create(new("owner",140.5m,50.5m,4,new(){Value="True",LogicLanguage="P ∧ Q"})).Success);
         LogicalNodeRelationTests.Add(old,170.5m,50.5m,"⊆");

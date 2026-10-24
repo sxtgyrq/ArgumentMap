@@ -60,7 +60,9 @@ internal static class CodeMigrationChecks
         Assert.AreEqual("中文负责人", a.Owner); Assert.AreEqual("保留中文说明", a.Properties.RoadDetail);
         Assert.AreEqual(500, a.Properties.Speed); Assert.AreEqual((short)1, a.Properties.PassInOpposeDirection); Assert.IsTrue(b.IsLocked);
         CollectionAssert.AreEqual(new[] { (100,110), (110,110), (130,110) }, a.Nodes.Select(n => (n.X,n.Y)).ToArray());
-        var before = crosses.GetAll().Data!; Assert.AreEqual(2, before.Length); Assert.IsTrue(before.All(c => c.Key.IsValid));
+        var before = repository.Transaction(s => s.Crosses.Values.ToArray()); Assert.AreEqual(2, before.Length); Assert.IsTrue(before.All(c => c.Key.IsValid));
+        var visible = crosses.GetAll().Data!;
+        Assert.AreEqual(repository.Transaction(s => s.Crosses.Keys.Count(k => !s.StaleCrosses.Contains(k))), visible.Length);
         var main = before.Single(c => c.Key.Contains(a.Code));
         Assert.AreEqual(CrossState.Connected, main.State); Assert.AreEqual(6L, main.Version);
         if (oldVersion != 1)

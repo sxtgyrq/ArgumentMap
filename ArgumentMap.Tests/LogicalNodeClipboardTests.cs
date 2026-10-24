@@ -18,7 +18,7 @@ namespace ArgumentMap.Tests;
 [TestClass,TestCategory("Unit")]
 public sealed class LogicalNodeClipboardTests
 {
-    internal static LogicalNodeProperties Props(int size,string symbol="=")=>new(){Value=size==10?"people":size==12?"S":size==6?"可重复的判断":symbol,LogicLanguage=size==10?"people ∈ PEOPLE":size==12?"S":size==6?"P":symbol,Info="说明原文\n复制后保留"};
+    internal static LogicalNodeProperties Props(int size,string symbol="=")=>new(){Value=size==10?"people(id=1)":size==12?"S":size==6?"可重复的判断":symbol,LogicLanguage=size==10?"people(id=1)∈PEOPLE∧1∈PEOPLE.ID":size==12?"S":size==6?"P":symbol,Info="说明原文\n复制后保留"};
     private static LogicalNodeEditor Editor(CoordinateMapView view)=>(LogicalNodeEditor)typeof(CoordinateMapView).GetField("logicalNodes",BindingFlags.NonPublic|BindingFlags.Instance)!.GetValue(view)!;
     private static MainWindow Window(ILineClient client)=>new(client){Left=-10000,Top=-10000,WindowStartupLocation=WindowStartupLocation.Manual,ShowInTaskbar=false,ShowActivated=false};
 
@@ -62,7 +62,7 @@ public sealed class LogicalNodeClipboardTests
         finally{main.Close();}
     }
 
-    [TestMethod,DataRow("size18"),DataRow("size-string"),DataRow("size-fraction"),DataRow("unknown"),DataRow("identity"),DataRow("positions"),DataRow("duplicate"),DataRow("missing"),DataRow("format"),
+    [TestMethod,DataRow("size18"),DataRow("size-string"),DataRow("size-fraction"),DataRow("unknown(id=1)"),DataRow("identity"),DataRow("positions"),DataRow("duplicate"),DataRow("missing"),DataRow("format"),
         DataRow("null"),DataRow("blank6"),DataRow("blank12"),DataRow("long-value"),DataRow("long-logic"),DataRow("long-info"),DataRow("relation-value"),DataRow("relation-logic"),DataRow("relation-empty")]
     public void InvalidClipboardCannotInjectIdentityUnsupportedSizesOrBypassTypeRules(string kind)
     {
@@ -70,7 +70,7 @@ public sealed class LogicalNodeClipboardTests
         switch(kind)
         {
             case "size18":json["size"]=18;break;case "size-string":json["size"]="6";break;case "size-fraction":json["size"]=6.5;break;
-            case "unknown":json["sql"]="text";break;case "identity":json["owner"]="admin";break;case "positions":json["positions"]=new JsonArray();break;
+            case "unknown(id=1)":json["sql"]="text";break;case "identity":json["owner"]="admin";break;case "positions":json["positions"]=new JsonArray();break;
             case "duplicate":raw=json.ToJsonString().Replace("\"size\":6","\"size\":6,\"size\":12");break;
             case "missing":json.Remove("size");break;case "format":json["format"]="argumentmap.flow/1";break;case "null":json["logic"]=null;break;
             case "blank6":json["logic"]=" ";break;case "blank12":json["size"]=12;json["logic"]="";break;

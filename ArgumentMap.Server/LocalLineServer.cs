@@ -64,6 +64,16 @@ public sealed class LocalLineServer : IAsyncDisposable
                 new MapUndoService(scope).Record(owner, edit, () => operation(scope, owner)));
             return Results.Json(result, statusCode: result.Code == "LoginExpired" ? StatusCodes.Status401Unauthorized : StatusCodes.Status200OK);
         }
+        app.MapPost("/PreviewLogicalNodeConnection", async (PreviewLogicalNodeConnectionRequest request, HttpContext context) =>
+        {
+            var prepared=accounts.WithSession(request.Owner,request.LoginCode,(scope,name)=>new LogicalNodeConnectionService(scope).Prepare(request with{Owner=name}));
+            if(!prepared.Success)return Results.Json(ServiceResult<LogicalNodeConnectionPlan>.Fail(prepared.Code,prepared.Message),statusCode:prepared.Code=="LoginExpired"?401:200);
+            // Geometry search is CPU work on a snapshot, outside both the login/map lock and DB transaction.
+            var plan=await Task.Run(()=>LogicalNodeConnectionService.Plan(prepared.Data!,context.RequestAborted),context.RequestAborted);
+            return Results.Json(plan);
+        });
+        app.MapPost("/SaveLogicalNodeConnection", (SaveLogicalNodeConnectionRequest request) => Authorized(request.Owner,request.LoginCode,
+            (scope,name)=>new LogicalNodeConnectionService(scope).Save(request with{Owner=name}),edit:"连接两个 LN"));
         app.MapPost("/UndoMap", (MapUndoRequest request) => Authorized(request.UserName, request.LoginCode,
             (scope, name) => string.IsNullOrEmpty(request.RequestId) ? ServiceResult<MapUndoResult>.Fail("InvalidUndoRequest", "缺少撤销请求标识，请更新客户端。") :
                 new MapUndoService(scope).Undo(name, request.RequestId)));

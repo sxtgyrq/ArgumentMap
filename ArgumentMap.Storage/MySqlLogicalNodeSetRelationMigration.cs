@@ -13,7 +13,7 @@ public sealed partial class MySqlLineRepository
         check.CommandText="SELECT c.CHECK_CLAUSE FROM information_schema.CHECK_CONSTRAINTS c JOIN information_schema.TABLE_CONSTRAINTS t ON t.CONSTRAINT_SCHEMA=c.CONSTRAINT_SCHEMA AND t.CONSTRAINT_NAME=c.CONSTRAINT_NAME WHERE t.CONSTRAINT_SCHEMA=@db AND t.TABLE_NAME='LogicalNodes' AND t.CONSTRAINT_NAME='CK_LN_RelationValue' AND t.CONSTRAINT_TYPE='CHECK' AND t.ENFORCED='YES'";
         check.Parameters.AddWithValue("@db",DatabaseName);var clause=check.ExecuteScalar() as string;
         if(clause is null)throw new InvalidOperationException("缺少 LN8 关系符号约束，数据库架构不完整。");
-        if(current is 28 or 29 or 30 or 31)
+        if(current is 28 or 29 or 30 or 31 or 32 or 33 or 34 or 35)
         {
             if(new[]{"E28A87","E28A8B","E28A86","E28A8A"}.Any(hex=>!clause.Contains(hex,StringComparison.OrdinalIgnoreCase)))
                 throw new InvalidOperationException("LN8 集合关系符号约束尚未完整升级，数据库架构不完整。");

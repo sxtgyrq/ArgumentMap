@@ -58,7 +58,7 @@ public sealed class MapAreaPasteService(ILineRepository repository)
             nodeCodes.Values.Select(c=>LogicalNodePositions.Snapshot(working,working.LogicalNodes[c]) with{CanEdit=true}).ToArray(),
             working.Crosses.Values.Where(c=>addedRoads.Contains(c.Key.RoadCode1)||addedRoads.Contains(c.Key.RoadCode2)).OrderBy(c=>c.Key).ToArray());
         var map=new MapAreaSnapshot(working.Lines.Values.Where(l=>l.Nodes.Length>=2).OrderBy(l=>l.Code).Select(l=>l with{Nodes=l.Nodes.ToArray()}).ToArray(),
-            new LogicalNodeService(scope).GetAll(request.Owner).Data!,working.Crosses.Values.OrderBy(c=>c.Key).ToArray());
+            new LogicalNodeService(scope).GetAll(request.Owner).Data!,CrossTopology.Visible(working));
         LineTopologyService.Publish(state,working);
         // Keep the status bar usable for large groups; full allocation details stay
         // in Notes and the returned snapshots instead of expanding the map footer.

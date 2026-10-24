@@ -18,6 +18,7 @@ public partial class LogicalNodeWindow : Window
     private bool busy;
     private bool ln12DefaultLogic,settingDefaultLogic;
     private bool settingOperandLogic;
+    private bool settingInstanceValue;
     private string CurrentOperandKind => SizeInput.SelectedValue as string=="6" ? OperandKindInput.SelectedValue as string??LogicalNodeOperandRules.Custom : LogicalNodeOperandRules.Custom;
     private readonly bool canEdit;
     private string CurrentValue=>RelationValueInput.Visibility==Visibility.Visible?RelationValueInput.SelectedValue as string??LogicalNodeRelationRules.Equality:
@@ -36,6 +37,8 @@ public partial class LogicalNodeWindow : Window
         XInput.Text = (node?.X ?? (decimal)center.X).ToString("0.0",CultureInfo.InvariantCulture);
         YInput.Text = (node?.Y ?? (decimal)center.Y).ToString("0.0",CultureInfo.InvariantCulture);
         SizeInput.SelectedValue = (node?.SideLength ?? sideLength).ToString(CultureInfo.InvariantCulture);
+        ValueInput.MaxLength=(node?.SideLength??sideLength)==10?LogicalNodeInstanceRules.ValueMaximum:32;
+        LogicInput.MaxLength=(node?.SideLength??sideLength)==10?LogicalNodeInstanceRules.LogicMaximum:255;
         ValueInput.Text=LogicalNodeTextRules.SingleLineDraft(node?.Properties.Value ?? (sideLength == 18 ? "开始" : "逻辑节点")); InfoInput.Text=node?.Properties.Info ?? "";
         if((node?.SideLength??sideLength)==4)
         {ValueInput.Visibility=Visibility.Collapsed;BranchValueInput.Visibility=Visibility.Visible;BranchValueInput.SelectedValue=node?.Properties.Value??LogicalNodeBranchRules.False;}
@@ -56,9 +59,10 @@ public partial class LogicalNodeWindow : Window
         }
         if((node?.SideLength??sideLength)==10)
         {
-            ValueInput.CharacterCasing=CharacterCasing.Lower;LogicInput.IsReadOnly=true;
+            LogicInput.IsReadOnly=true;
+            ValueInput.ToolTip="类名小写() 或 类名小写(属性=属性值,属性=属性值)，例如 human() a、human(id=1,name=要瑞卿) c；括号后可用空白分隔别名。仅类名前缀转小写，属性和别名保留原文，最多 220 字符；对应 LN12 必须存在。";
             LogicInput.Text=LogicalNodeInstanceRules.Expression(LogicalNodeInstanceRules.Normalize(ValueInput.Text));
-            LogicInput.ToolTip="自动生成：小写值 ∈ 对应大写 LN12 值。值和逻辑语言均可重复；新建或改属时，对应 LN12 的值必须含英文字母（A–Z／a–z）。";
+            LogicInput.ToolTip="自动生成实例与各属性的隶属表达式，例如 human(id=1,name=Alice) c 生成 c∈HUMAN∧1∈HUMAN.ID∧Alice∈HUMAN.NAME；未填别名时使用完整实例值。值和逻辑语言均可重复；按括号前的类名查找父类。";
         }
         if((node?.SideLength??sideLength)==8)
         {
@@ -86,11 +90,29 @@ public partial class LogicalNodeWindow : Window
         BranchValueInput.SelectionChanged+=BranchValue_SelectionChanged;
         RelationValueInput.SelectionChanged+=(_,_)=>{if(RelationValueInput.Visibility==Visibility.Visible)LogicInput.Text=CurrentValue;};
         ValueInput.TextChanged+=(_,_)=>{if(ln12DefaultLogic&&SizeInput.SelectedValue as string=="12")SetLn12DefaultLogic();
-            if(SizeInput.SelectedValue as string=="10")LogicInput.Text=LogicalNodeInstanceRules.Expression(LogicalNodeInstanceRules.Normalize(ValueInput.Text));};
+            if(SizeInput.SelectedValue as string=="10")NormalizeInstanceDraft();};
         LogicInput.TextChanged+=(_,_)=>{if(!settingDefaultLogic)ln12DefaultLogic=false;NormalizeOperandDraft();UpdateNavigationAvailability();};
         OperandKindInput.SelectionChanged+=(_,_)=>NormalizeOperandDraft();
         BranchValueInput.SelectionChanged+=(_,_)=>UpdateNavigationAvailability();
         UpdateNavigationAvailability();
+    }
+    private void NormalizeInstanceDraft()
+    {
+        if(settingInstanceValue)return;
+        settingInstanceValue=true;
+        try
+        {
+            var normalized=LogicalNodeInstanceRules.Normalize(ValueInput.Text);
+            if(normalized!=ValueInput.Text)
+            {
+                var caret=ValueInput.CaretIndex;var length=ValueInput.SelectionLength;
+                ValueInput.Text=normalized;
+                ValueInput.Select(Math.Min(caret,normalized.Length),Math.Min(length,normalized.Length-Math.Min(caret,normalized.Length)));
+            }
+            LogicInput.Text=LogicalNodeInstanceRules.Expression(normalized);
+            UpdateNavigationAvailability();
+        }
+        finally{settingInstanceValue=false;}
     }
     private void NormalizeOperandDraft()
     {
@@ -244,7 +266,8 @@ public partial class LogicalNodeWindow : Window
         if(original is not null&&client is not ILogicalNodeOperandClient&&CurrentOperandKind!=original.Properties.OperandKind)
         {Status.Text="当前连接不支持保存 OperandKind，请更新 WPF 和 Server。";return;}
         if(LogicalNodeTextRules.HasLineBreak(CurrentValue)||LogicalNodeTextRules.HasLineBreak(LogicInput.Text)){Status.Text=LogicalNodeTextRules.Message;return;}
-        if(CurrentValue.Length>32 || InfoInput.Text.Length>255 || LogicInput.Text.Length>255){Status.Text="值最多 32 个字符，说明和逻辑语言各最多 255 个字符。";return;}
+        if(SizeInput.SelectedValue as string=="10")NormalizeInstanceDraft();
+        if(CurrentValue.Length>(SizeInput.SelectedValue as string=="10"?LogicalNodeInstanceRules.ValueMaximum:32) || InfoInput.Text.Length>255 || LogicInput.Text.Length>(SizeInput.SelectedValue as string=="10"?LogicalNodeInstanceRules.LogicMaximum:255)){Status.Text="LN10 值最多 220 字符、逻辑语言最多 4096 字符；其他 LN 值最多 32 字符、逻辑语言最多 255 字符；说明最多 255 字符。";return;}
         if(SizeInput.SelectedValue as string=="12"&&string.IsNullOrWhiteSpace(LogicInput.Text)){Status.Text="边长为 12 的 LN 的逻辑语言不能为空或仅含空白。";return;}
         if(original is not null && client is not ILogicalNodeLogicClient && LogicInput.Text!=original.Properties.LogicLanguage)
         {Status.Text="当前连接不支持保存逻辑语言，请升级客户端。";return;}

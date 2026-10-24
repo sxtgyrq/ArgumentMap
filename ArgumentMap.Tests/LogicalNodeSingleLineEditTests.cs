@@ -26,7 +26,7 @@ public sealed class LogicalNodeSingleLineEditTests
     {
         using var handler=new DirectLogicalNodeHttpStub();var service=new LogicalNodeService(handler.Repository);
         if(size==10)LogicalNodeInstanceTests.Parent(handler.Repository);
-        var node=service.Create(new("owner",100.5m,100.5m,size,new(){Value=size switch{4=>"False",8=>"↔",10=>"people",_=>"节点"},LogicLanguage=size==4?"":"P"})).Data!;
+        var node=service.Create(new("owner",100.5m,100.5m,size,new(){Value=size switch{4=>"False",8=>"↔",10=>"people(id=1)",_=>"节点"},LogicLanguage=size==4?"":"P"})).Data!;
         using var http=new HttpClient(handler){BaseAddress=new Uri("http://localhost/")};var window=Window(new HttpLineClient(http,new("owner","test")),node);
         try
         {

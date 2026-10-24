@@ -1,5 +1,13 @@
 # Argument Map 测试
 
+LogicalNodeInstanceConjunctionTests / LogicalNodeInstanceConjunctionMySqlTests 验证 LN10 用 ∧ 连接自动生成的命题，保留参数和别名内的字面 ∧/⋂，覆盖编辑/剪贴板/导入、真实 v34 数据及全部撤销快照升级、父类改名/移动/删除后撤销、其他 LN/道路/Cross/IsChanged 保持不变、版本仅增加一次、数据库 INSERT/UPDATE 拒绝旧连接符，以及数据/历史/升级标记/发布四类故障回滚或续接。权限测试使用独立 GUID 测试账号和数据库，验证 binlog 开启且 trust 关闭时在写入升级数据前明确拒绝，不改变 MySQL 全局设置。
+
+ConnectionExtensionCrossTests / ConnectionExtensionCrossMySqlTests：前往与寻找各覆盖单向/双向旧线。接入点因旧节点占用而外延 1 单位，外延端恰好与另一条线路相交；验证唯一选定 Cross 为 I，外延额外 Cross 为 O、两个方向均不能换线，且真实 HTTP/MySQL、重启、后续 K 和一次撤销保持正确。
+
+LogicalNodeFindTests / LogicalNodeFindMySqlTests 及 LogicalNodeGoToUiTests 的寻找分支覆盖从 LN1 顺向接出、只穿过 LN2、六种 LN 尺寸、最短新增长度、双向道路、分支/循环、旧 Cross 单向权限、避开 LN/已有两线交点、Cross 端不超过 1 单位调整、伪造通路拒绝和并发改线后的重新校验。真实 HTTP/MySQL 验证新 Cross 的普通 I 接出、其他 O、无关 IsChanged 保留、后续 K、重启/幂等重试/一次撤销，以及 Cross、节点、投影、撤销日志写入失败整事务回滚。实际窗口从“寻找”按钮进入，生成方向预览、Enter 保存并 Ctrl+Z 恢复；渲染为 .artifacts/renders/ln-find-preview.png。
+
+CrossPendingVisibilityTests / CrossPendingVisibilityMySqlTests：对照旧项目 `IsChanged >= 0` 查询，修改/缩短线路后隐藏负标记 Cross，保留数据库中的通行设置供 K 复用；逐段 K 恢复仍有效的交点，最终清除失效记录。覆盖整线删除后的 WPF 缓存刷新、两台 Server 读取、重启、数据库撤销，以及导入/粘贴/框选/撤销返回地图不会重新显示无关的待算 Cross。只读查询不改动待算标记或撤销历史。
+
 现有 ArgumentMap.Tests 已接入 MSTest，可在 Visual Studio 测试资源管理器中按测试、类别或类运行。项目已在 ConsoleApp1/AIMap.sln 中，无须重复建项目。
 
 框选移动：MapAreaMoveTests / MapAreaMoveMySqlTests / MapAreaMoveUiTests 覆盖完整线路及 LN 框选、Cross 缺少所属线路拒绝、平移后五种 Cross 状态恢复、节点序号与比例、LN 0/多位置更新、未选中 LN 的关联增减、无变化幂等、权限/锁定/待 K 计算、源对象及 Cross 设置版本冲突、客户端几何不可信、目标线路/LN/Cross 全部约束。真实 HTTP 与 MySQL 覆盖两个独立服务并发、提交时目标新增冲突、九个 SQL 写入故障点五表全部回滚并重试、重启与后续 K/J 幂等，以及 18 位原始 DECIMAL 比例保留。WPF 检查 F7、菜单、按钮、Enter、Esc、预览失败重试、忙碌与重复提交保护和三类缓存一起更新；渲染附件为 .artifacts/renders/map-area-move-preview.png。仅创建独立测试库，正式地图不加入测试对象。
@@ -146,3 +154,23 @@ LogicalNodeProtectionTests 通过实际绘图几何与像素验证六种 LN 外�
 ## LN6 OperandKind
 
 LogicalNodeOperandTests、LogicalNodeOperandMySqlTests、LogicalNodeOperandUiTests 覆盖 Class/Instance/Custom 大小写、固定英文文化、转换后的全局唯一性及新增编号/修改拒绝、LN4 双分支同步、默认/旧接口保留、自定义原约束、非法类型和跨尺寸拒绝、单个/整组剪贴板、导入引用、Ctrl+Z 恢复、SQL 直写约束、迁移 30→3001→31 中断重试、旧撤销 JSON、多人并发及 UI 草稿。渲染参考 .artifacts/renders/ln6-operand-editor.png。数据库测试仅使用隔离 GUID 库。
+
+## LN 自动连接
+
+`LogicalNodeGoToTests` / `LogicalNodeGoToMySqlTests` / `LogicalNodeGoToUiTests` 覆盖前往模式：旧线有向反向遍历、双向线、已有单向 Cross 的通行限制、未设置/缺失交点不换路、循环、其他 LN 及擦角阻挡；按新增长度选取接入点、避让 LN、避让已占 Cross、半整数/旧节点末端最多 1 单位调整；确认时拒绝旧线反转、旧 Cross 变化或新增 LN 阻挡；新接入 Cross 使用普通连通 I（两个换路方向均允许），其他新 Cross 不连通，旧 Cross 和待算标记保留；真实 K 状态复用、跨 Server 修改、SQL 故障回滚、重试和单次撤销。实际 WPF 点击“前往”并显示已有通路，截图位于 `.artifacts/renders/ln-goto-preview.png`。
+
+LogicalNodeConnectionTests、LogicalNodeConnectionMySqlTests、LogicalNodeConnectionUiTests 覆盖各尺寸 LN、两端精确 5.5 延伸、八方向与 90°/135° 折角、45° 锐角拒绝、避让第三 LN、未计算交点与斜线、超过 500 的细分、无可用尾端、预览不写库、K 后 O 设置新线交点、保留其他 IsChanged 待算任务和旧通行设置、完整撤销、重复响应重试、并发冲突与 SQL 故障整次回滚。WPF 验证两次选点、无效点/同一 LN、真实方式弹窗、其他选项禁用、预览确认、忙碌防重、失败重试、Backspace/Esc 与剪贴板和撤销的草稿保护。界面参考图 .artifacts/renders/ln-connection-preview.png。MySQL 测试只使用隔离 GUID 数据库。
+
+## LN10 括号属性
+
+LogicalNodeInstanceAttributeTests / LogicalNodeInstanceAttributeMySqlTests 覆盖 human(id=1)、human(name=要瑞卿)、human(name=Alice)，仅类名前缀转小写、属性大小写保留、缺失或嵌套括号拒绝、重复实例、父类值与其自定义 logic 区分、220 字符及父类改名长度回滚。验证单节点剪贴板、整组粘贴、同批导入父类编号时保留属性、最新父类定位、连续落点由服务端生成 id=新节点编码，以及多人并发新建。
+
+数据库测试使用隔离 GUID 库模拟真实 v31 的旧 CHECK、裸值和撤销 JSON，验证 31→3101→32 自动补 id=原节点编码、原位置及 IsChanged 保留、旧创建/删除/父类改名记录在升级后仍能撤销；地图修复、历史修复、安装 CHECK、发布版本四阶段故障后保持关闭并可幂等重试。SQL 直接写入验证小写前缀、括号属性、固定隶属表达式和按边长区分的值长度限制，重启检查完整约束。
+
+## LN10 空属性与多属性隶属表达式
+
+LogicalNodeInstanceMembershipTests / LogicalNodeInstanceMembershipMySqlTests 用四个用户示例的完整字面量验证空括号、单属性、多属性和 ⋂ 拼接，包含属性顺序与大小写、空属性项拒绝、界面从多属性切回空括号、复制/导入/父类编号与改名/撤销同步。长中文类名的展开逻辑及 JSON 可超过旧剪贴板上限，仍完整往返。SQL 测试验证直接写入完整表达式、缺失/错误属性表达式拒绝、其他 LN 的逻辑长度仍限 255、触发器缺失关闭启动，以及真实 v32 旧表达式/撤销记录升级、发布失败重试和版本幂等性。
+
+## LN10 可选实例别名
+
+LogicalNodeInstanceAliasTests / LogicalNodeInstanceAliasMySqlTests 验证四个别名示例、中文与大小写、分隔空白、添加/删除别名、父类定位、剪贴板、同批导入/整组粘贴的父类编号、父类改名及撤销保留名字。SQL/HTTP 验证完整表达式、防止绕过、重启持久化和真实 v33 格式约束升级：不改原节点资料与撤销记录，发布失败保持关闭并可重试。

@@ -15,7 +15,7 @@ public sealed partial class MySqlLineRepository
         using var check=connection.CreateCommand();
         check.CommandText="SELECT COUNT(*) FROM information_schema.TABLE_CONSTRAINTS WHERE CONSTRAINT_SCHEMA=@db AND TABLE_NAME='LogicalNodes' AND CONSTRAINT_NAME='CK_LN_Logic12Required' AND CONSTRAINT_TYPE='CHECK' AND ENFORCED='YES'";
         check.Parameters.AddWithValue("@db",DatabaseName);var hasCheck=Convert.ToInt32(check.ExecuteScalar())==1;
-        if(current is 23 or 24 or 25 or 26 or 27 or 28 or 29 or 30 or 31)
+        if(current is 23 or 24 or 25 or 26 or 27 or 28 or 29 or 30 or 31 or 32 or 33 or 34 or 35)
         {if(!hasCheck)throw new InvalidOperationException("缺少边长 12 的 LN 逻辑语言非空约束，数据库架构不完整。");return;}
         if(current is not (22 or LogicalNode12LogicPending))throw new InvalidOperationException("LN12 逻辑语言架构版本不兼容。");
         BackupLogicalNodeMigration(connection);

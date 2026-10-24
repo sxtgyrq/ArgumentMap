@@ -38,15 +38,15 @@ public static class FlowDiagramLanguage
                 if(n.Size is not(4 or 6 or 8 or 10 or 12 or 18))return Fail($"LN {n.Id}：size 只能为 4、6、8、10、12 或 18。");
                 if(!LogicalNodeOperandRules.Valid(n.Size,n.OperandKind))return Fail($"LN {n.Id}：operandKind 只能为 Class、Instance、Custom；非 LN6 只能省略或使用 Custom。");
                 if(n.Size is not (4 or 8 or 10)&&string.IsNullOrWhiteSpace(n.Logic))return Fail($"LN {n.Id}：逻辑语言 logic 必填，不能省略、为 null、空字符串或仅空白。LN4 允许留空；LN8 和 LN10 漏填或空串时自动生成。");
-                if(n.Value is null||n.Info is null||n.Logic is null||n.Value.Length>32||n.Info.Length>255||n.Logic.Length>255)return Fail($"LN {n.Id}：value 最多 32 字符，info、logic 各最多 255 字符，不能为 null。");
+                if(n.Value is null||n.Info is null||n.Logic is null||n.Value.Length>(n.Size==10?LogicalNodeInstanceRules.ValueMaximum:32)||n.Info.Length>255||n.Logic.Length>(n.Size==10?LogicalNodeInstanceRules.LogicMaximum:255))return Fail($"LN {n.Id}：LN10 的 value 最多 220 字符，其他 LN 最多 32 字符；LN10 的 logic 最多 4096 字符，其他 LN 的 logic 及所有 info 最多 255 字符，不能为 null。");
                 if(LogicalNodeTextRules.HasLineBreak(n.Value)||LogicalNodeTextRules.HasLineBreak(n.Logic))return Fail($"LN {n.Id}：value 和 logic 不能包含换行，只有 info 允许换行。");
                 if(n.Size==4&&!LogicalNodeBranchRules.ValidValue(n.Value))return Fail($"LN {n.Id}：LN4 的 value 只能为 True 或 False（字符串），逻辑语言可以为空。");
                 if(n.Size==8&&!LogicalNodeRelationRules.ValidValue(n.Value))return Fail($"LN {n.Id}：LN8 的 value 只能为 {LogicalNodeRelationRules.OptionsDescription}（字符串）；等同及集合关系用于 LN12，蕴含和等价用于 LN6，为绘图约定，不自动检查端点。");
                 if(n.Size==8&&n.Logic.Length>0&&n.Logic!=n.Value)return Fail($"LN {n.Id}：LN8 的 logic 必须与 value 完全一致（{LogicalNodeRelationRules.OptionsDescription}），省略或空串时自动补齐。");
                 if(n.Size==10)
                 {
-                    if(string.IsNullOrWhiteSpace(n.Value))return Fail($"LN {n.Id}：LN10 的 value 不能为空。");
-                    if(!LogicalNodeInstanceRules.HasEnglishLetter(n.Value))return Fail($"LN {n.Id}：LN10 的 value 必须至少包含一个英文字母（A–Z／a–z），不能引用全中文、纯数字或符号的 LN12。");
+                    if(!LogicalNodeInstanceRules.ValidFormat(n.Value))return Fail($"LN {n.Id}：LN10 的 value 必须为 类名小写() 或 类名小写(属性=属性值,属性=属性值)，例如 human() a、human(id=1,name=要瑞卿) c；别名可省略，括号后用空白分隔，属性和别名保留原文。");
+                    if(!LogicalNodeInstanceRules.HasEnglishLetter(LogicalNodeInstanceRules.ParentValue(n.Value)))return Fail($"LN {n.Id}：LN10 的类名前缀必须至少包含一个英文字母（A–Z／a–z），不能引用全中文、纯数字或符号的 LN12。");
                     var value=LogicalNodeInstanceRules.Normalize(n.Value);
                     if(n.Logic.Length>0&&n.Logic!=LogicalNodeInstanceRules.Expression(value))
                         return Fail($"LN {n.Id}：LN10 的 logic 应为“{LogicalNodeInstanceRules.Expression(value)}”，不可填写全称量词或其他表达式；也可省略让系统生成。");
